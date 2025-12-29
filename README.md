@@ -55,11 +55,6 @@ This project is a multi-component application built as part of the BeyondChats a
 
 The application manages articles through their complete lifecycle: creation, storage, enhancement, and presentation.
 
-## Live Demo
-
-Frontend -> https://beyondchats-frontend-lac.vercel.app/
-Backend -> 
-
 ### View the Frontend Application
 
 To see the article management system in action with original and enhanced articles side-by-side:
