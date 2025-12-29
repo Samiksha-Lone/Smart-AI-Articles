@@ -9,6 +9,20 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](#license)
 [![Status](https://img.shields.io/badge/Status-Complete-brightgreen.svg)](#-assignment-phases-complete)
 
+## Live Demo
+
+<p>
+<a href="https://beyondchats-frontend-lac.vercel.app/" title="Open Frontend Live">
+  <img src="https://img.shields.io/badge/%F0%9F%8C%90%20Frontend-Live-brightgreen?style=for-the-badge" alt="Frontend Live" />
+</a>
+<a href="https://beyondchats-assignment-backend.onrender.com/api/articles" title="Open Backend API (13 Articles)">
+  <img src="https://img.shields.io/badge/%F0%9F%93%8A%20API%20Data-13%20Articles-blue?style=for-the-badge" alt="API Data" />
+</a>
+<a href="https://github.com/Samiksha-Lone/beyondchats-assignment" title="View Source Repository">
+  <img src="https://img.shields.io/badge/%F0%9F%93%82%20Source-Repo-6f42c1?style=for-the-badge" alt="Source Repo" />
+</a>
+</p>
+
 A comprehensive full-stack web application demonstrating a complete article management and AI enhancement system. This project implements three distinct phases: a robust REST API backend, an AI-powered article enhancement service, and a responsive React frontend.
 
 ## 📑 Table of Contents
@@ -42,6 +56,9 @@ This project is a multi-component application built as part of the BeyondChats a
 The application manages articles through their complete lifecycle: creation, storage, enhancement, and presentation.
 
 ## Live Demo
+
+Frontend -> https://beyondchats-frontend-lac.vercel.app/
+Backend -> 
 
 ### View the Frontend Application
 

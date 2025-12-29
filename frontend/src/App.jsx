@@ -510,7 +510,7 @@ function App() {
             </span>
           </div>
           <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6">
-            <a href="http://localhost:5000/api/articles" className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-lg">
+            <a href="https://beyondchats-assignment-backend.onrender.com/api/articles" className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-lg">
               View Raw API →
             </a>
             <a href="https://github.com/Samiksha-Lone/beyondchats-assignment" target="_blank" rel="noopener noreferrer"
