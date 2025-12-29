@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const articleRoutes = require('./routes/articles');
-const scrapeOldestArticles = require('./scraper/scrape-blogs');
+// const scrapeOldestArticles = require('./scraper/scrape-blogs');
 require('dotenv').config();
 
 const app = express();
@@ -24,8 +24,8 @@ app.use('/api/articles', articleRoutes);
 // Scrape endpoint
 app.post('/api/scrape', async (req, res) => {
   try {
-    await scrapeOldestArticles();
-    res.json({ message: 'Scraping completed!' });
+    // await scrapeOldestArticles();
+    res.json({ message: 'Scraping disabled!' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -1,67 +1,396 @@
+# ============================================================================
+# PROJECT-WIDE IGNORES
+# ============================================================================
+
+# Environment Variables (CRITICAL: Never commit sensitive data!)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+.env.*.js
+
 # Dependencies
 **/node_modules/
 backend/node_modules/
+frontend/node_modules/
 enhancer/node_modules/
-**/node_modules/
 node_modules/
+pnpm-store/
 
-# Lock files
-**/package-lock.json
-backend/package-lock.json
-package-lock.json
-**/yarn.lock
-backend/yarn.lock
-enhancer/yarn.lock
-yarn.lock
-**/pnpm-lock.yaml
-backend/pnpm-lock.yaml
-pnpm-lock.yaml
+# Package Manager Lock Files (use lockfiles in production, but optional for repos)
+# Uncomment if using lockfiles
+# **/package-lock.json
+# **/yarn.lock
+# **/pnpm-lock.yaml
 
-# Environment variables
-.env
-backend/.env
-.env.local
+# ============================================================================
+# BUILD & DISTRIBUTION
+# ============================================================================
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+out/
+.next/
+.nuxt/
+.vuepress/dist/
+.vuepress/build/
+
+# Frontend specific builds
+frontend/dist/
+frontend/build/
+backend/dist/
+
+# ============================================================================
+# IDE & EDITOR
+# ============================================================================
+
+# VS Code
+.vscode/
+.vscode-wsls
+*.code-workspace
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+.idea_modules/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+.vim/
+*.swp
+*.swo
+*~
+.netrwhist
+
+# Emacs
+*~
+*#
+*.*~
+*^Z
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.vcxproj.filters
+.vs/config/applicationhost.config
+
+# WebStorm
+.WebStorm*/
+.idea/
+
+# Atom
+.atom/
+
+# ============================================================================
+# LOGS & DEBUG
+# ============================================================================
+
+# Logging
+logs/
+log/
+*.log
+npm-debug.log*
+npm-error.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Runtime logs
+debug.log
+logs.txt
+
+# ============================================================================
+# TESTING & COVERAGE
+# ============================================================================
+
+# Test coverage
+coverage/
+.nyc_output/
+**/.nyc_output
+**/.coverage
+*.lcov
+.coverage
+htmlcov/
+
+# Jest
+.jest_cache/
+.jest-coverage/
+
+# Mocha
+.mocha_output/
+
+# Karma
+karma.conf.js
+test-results/
+
+# ============================================================================
+# RUNTIME & PROCESS
+# ============================================================================
+
+# Process IDs
+*.pid
+*.seed
+*.pid.lock
+pids/
+
+# Lock files (optional)
+.lock
+*.lock
+
+# Node version
+.node-version
+.nvmrc
+
+# ============================================================================
+# DATABASE
+# ============================================================================
+
+# MongoDB
+data/
+mongodb_data/
+mongo_data/
+*.db
+*.sqlite
+*.sqlite3
+.mongodb/
+
+# Other databases
+*.rdb
+dump.rdb
+
+# ============================================================================
+# BROWSER AUTOMATION & TESTING
+# ============================================================================
+
+# Puppeteer
+chrome/
+chromium/
+.wdm/
+.cache/
+downloads/
+user_data/
+
+# Playwright
+.playwright/
+
+# WebDriver
+driver/
+
+# ============================================================================
+# OS & SYSTEM FILES
+# ============================================================================
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Windows
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.cab
+
+# Linux
+.directory
+.Trash-*
+
+# ============================================================================
+# TEMPORARY & CACHE
+# ============================================================================
+
+# Temporary files
+tmp/
+temp/
+temp_*
+*.tmp
+*.bak
+*.backup
+*.swn
+.cache/
+
+# Turbo
+.turbo/
+.turbopack
+
+# Vite
+.vite/
+
+# Next.js
+.next/
+out/
+
+# Misc temporary
+*.temp
+.env.*.backup
+
+# ============================================================================
+# THIRD-PARTY & BUILD TOOLS
+# ============================================================================
+
+# Grunt intermediate storage
+.grunt/
+
+# Bower
+bower_components/
+
+# Ruby
+Gemfile.lock
+.bundle/
+
+# Python
+*.py[cod]
+__pycache__/
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+
+# Java
+*.class
+*.jar
+*.war
+target/
+.gradle/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# ============================================================================
+# PACKAGE MANAGERS
+# ============================================================================
+
+# npm
+npm-debug.log
+.npm/
+
+# Yarn
+.yarn/*
+!.yarn/cache
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# pnpm
+pnpm-workspace.yaml
+
+# Lerna
+lerna-debug.log
+dist/
+
+# ============================================================================
+# DOCUMENTATION & ARTIFACTS
+# ============================================================================
+
+# API docs (if auto-generated, keep manual docs)
+api-docs/generated/
+swagger-ui/
+
+# Screenshot temp files
+*.tmp.png
+screenshots/temp/
+
+# Build artifacts
+.artifacts/
+
+# ============================================================================
+# DEVELOPMENT SPECIFIC
+# ============================================================================
+
+# Local development files
+.localrc
+.env.local.backup
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Runtime
-dist/
-build/
-coverage/
+# Git hooks
+.husky/
+pre-commit.sh
 
-# Logs
-logs/
-*.log
-npm-debug.log*
+# Misc development
+.eslintcache
+.stylelintcache
+.prettierignore
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
+# ============================================================================
+# SENSITIVE DATA (Extra Safety)
+# ============================================================================
 
-# Coverage directory used by tools like istanbul
-coverage/
+# API Keys (just in case)
+*.key
+*.pem
+secrets/
+.secrets/
 
-# Build outputs
-dist/
-build/
-out/
+# Database backups
+*.sql
+*.dump
+backup/
+backups/
 
-# MongoDB
-data/
-*.db
+# ============================================================================
+# PROJECT SPECIFIC (BeyondChats)
+# ============================================================================
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
+# Scraper temp files
+scraper/temp/
+scraper/downloads/
 
-# OS
-.DS_Store
-Thumbs.db
+# Enhancer temp files
+enhancer/logs/
+enhancer/temp/
 
-# Puppeteer
-chrome/
+# MongoDB local data
+.mongodb/
+mongodb_backup/
+
+# Test articles
+test_articles/
+sample_data/
+
+# Postman workspace files (keep collection, ignore workspace)
+Postman/postman_environment.json.backup
+
+# ============================================================================
+# ALLOW IMPORTANT FILES
+# ============================================================================
+
+# These files should be tracked (inverse rules)
+!.gitkeep
+!.env.example
+!.env.*.example
+!.env.development.example
+!.env.production.example
+!backend/.env.example
+!enhancer/.env.example
+!frontend/.env.example
+!frontend/.gitignore
+!backend/.gitignore
+!enhancer/.gitignore
