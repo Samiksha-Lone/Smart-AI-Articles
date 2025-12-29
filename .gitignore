@@ -3,13 +3,20 @@
 # ============================================================================
 
 # Environment Variables (CRITICAL: Never commit sensitive data!)
+# Ignore ALL .env files in ANY folder/subfolder
 .env
-.env.local
-.env.*.local
-.env.development
-.env.production
-.env.test
-.env.*.js
+.env.*
+!.env.example
+!.env.*.example
+!.env.development.example
+!.env.production.example
+# Also ignore specific folder paths for clarity
+backend/.env*
+!backend/.env.example
+frontend/.env*
+!frontend/.env.example
+enhancer/.env*
+!enhancer/.env.example       
 
 # Dependencies
 **/node_modules/
