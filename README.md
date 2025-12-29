@@ -1,0 +1,18 @@
+# BeyondChats Assignment 🚀
+
+## 🧪 Done Phase 1 APIs (Postman Proof) 
+
+### 1. GET All Articles
+![GET All](screenshots/postman/1-get-all.png)
+
+### 2. POST New Article
+![POST New](screenshots/postman/2-post-new.png)
+
+### 3. GET Single
+![GET Single](screenshots/postman/3-get-single.png)
+
+### 4. PUT Update
+![PUT Update](screenshots/postman/4-put-update.png)
+
+### 5. DELETE
+![DELETE](screenshots/postman/5-delete.png)
