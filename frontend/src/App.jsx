@@ -6,7 +6,7 @@ function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/articles')
+    axios.get('https://beyondchats-assignment-backend.onrender.com/api/articles')
       .then(res => {
         console.log('API Response:', res.data)
         setArticles(res.data)
