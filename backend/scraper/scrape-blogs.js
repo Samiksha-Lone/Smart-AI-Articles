@@ -5,16 +5,12 @@ const Article = require('../models/Article');
 
 async function scrapeArticles() {
   try {
-    // DON'T connect here - use existing connection
     await mongoose.connection.asPromise();
   } catch (error) {
-    // Only connect if no connection exists
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/beyondchats');
+    await mongoose.connect(process.env.MONGODB_URI);
   }
   
-  // Clear existing articles
   await Article.deleteMany({});
-  console.log('🗑️ Cleared existing articles');
 
   const urls = [
     'https://beyondchats.com/blogs-2/page/15/',
@@ -24,7 +20,6 @@ async function scrapeArticles() {
   const articles = [];
 
   for (const url of urls) {
-    console.log(`🔍 Scraping: ${url}`);
     try {
       const { data } = await axios.get(url, {
         headers: {
@@ -47,30 +42,26 @@ async function scrapeArticles() {
           articles.push({
             title: title.replace(/\s+/g, ' ').trim(),
             excerpt: excerpt.replace(/\s+/g, ' ').trim().slice(0, 200) + '...',
-            content: excerpt.replace(/\s+/g, ' ').trim().slice(0, 500), // ✅ REQUIRED FIELD
+            content: excerpt.replace(/\s+/g, ' ').trim().slice(0, 500),
             url: link.startsWith('http') ? link : `https://beyondchats.com${link}`
           });
-          console.log(`✅ Found: ${title.slice(0, 50)}...`);
         }
       });
     } catch (error) {
-      console.error(`❌ Error scraping ${url}:`, error.message);
     }
   }
 
-  // Save ONLY 5 OLDEST articles
   for (let article of articles.slice(0, 5)) {
     await Article.create({
       ...article,
       original: true,
-      is_updated: false, // ✅ For frontend filter
+      is_updated: false,
       date: new Date().toISOString().split('T')[0],
       author: 'SmartArticle AI Team'
     });
   }
 
-  console.log(`🎉 Scraped & Saved ${articles.length} OLDEST articles from page 14-15!`);
   process.exit(0);
 }
 
-scrapeArticles().catch(console.error);
+scrapeArticles();

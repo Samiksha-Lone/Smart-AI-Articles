@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
+import { MdDashboard } from 'react-icons/md'
+import { IoMdAdd } from 'react-icons/io'
+import { FaTrash } from 'react-icons/fa'
+import { HiSparkles } from 'react-icons/hi'
+import { IoDocumentText } from 'react-icons/io5'
 
 const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://beyondchats-assignment-backend.onrender.com/api'
 
@@ -9,6 +14,7 @@ function App() {
   const [showModal, setShowModal] = useState(false)
   const [formData, setFormData] = useState({ title: '', content: '', url: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [editId, setEditId] = useState(null)
 
   const fetchArticles = () => {
     setLoading(true)
@@ -17,8 +23,7 @@ function App() {
         setArticles(res.data)
         setLoading(false)
       })
-      .catch(err => {
-        console.error('Fetch Error:', err)
+      .catch(() => {
         setLoading(false)
       })
   }
@@ -31,15 +36,30 @@ function App() {
     e.preventDefault()
     setIsSubmitting(true)
     try {
-      await axios.post(`${API_BASE}/articles`, { ...formData, original: true })
+      if (editId) {
+        await axios.put(`${API_BASE}/articles/${editId}`, { ...formData, original: true })
+      } else {
+        await axios.post(`${API_BASE}/articles`, { ...formData, original: true })
+      }
       setFormData({ title: '', content: '', url: '' })
+      setEditId(null)
       setShowModal(false)
       fetchArticles()
     } catch (err) {
-      alert(err.response?.data?.message || 'Error creating article')
+      alert(err.response?.data?.message || 'Error saving article')
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleEdit = (article) => {
+    setFormData({
+      title: article.title,
+      content: article.content,
+      url: article.url || ''
+    })
+    setEditId(article._id)
+    setShowModal(true)
   }
 
   const handleDeleteAll = async () => {
@@ -49,8 +69,29 @@ function App() {
         await axios.delete(`${API_BASE}/articles/${article._id}`)
       }
       fetchArticles()
+    // eslint-disable-next-line no-unused-vars
     } catch (err) {
       alert('Error clearing articles')
+    }
+  }
+
+  const handleEnhance = async (articleId) => {
+    const originalText = originals.find(a => a._id === articleId)?.title
+    if (!window.confirm(`Ready to enhance "${originalText}" with AI?`)) return
+    
+    setLoading(true)
+    try {
+      const response = await axios.post(`${API_BASE}/articles/${articleId}/enhance`)
+      console.log('Enhancement successful:', response.data)
+      fetchArticles()
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 
+                          err.response?.data?.error || 
+                          err.message || 
+                          'Error executing AI enhancement'
+      console.error('Enhancement error details:', err.response?.data)
+      alert(`Enhancement failed: ${errorMessage}`)
+      setLoading(false)
     }
   }
 
@@ -68,7 +109,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] flex">
-      {/* Sidebar */}
       <aside className="fixed inset-y-0 left-0 w-72 bg-white border-r border-slate-200 hidden lg:flex flex-col p-8 z-30">
         <div className="text-2xl font-black text-slate-900 mb-12 flex items-center gap-2">
           <span className="text-blue-600">Smart</span>Article AI
@@ -76,13 +116,20 @@ function App() {
         
         <nav className="flex-1 space-y-2">
           <button className="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-700 rounded-xl font-bold transition-all">
-            🏠 Dashboard View
+            <MdDashboard className="text-lg" /> Dashboard View
           </button>
-          <button onClick={() => setShowModal(true)} className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl font-medium transition-all">
-            ➕ Create Article
+          <button 
+            onClick={() => {
+              setEditId(null)
+              setFormData({ title: '', content: '', url: '' })
+              setShowModal(true)
+            }} 
+            className="w-full flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-xl font-medium transition-all"
+          >
+            <IoMdAdd className="text-lg" /> Create Article
           </button>
           <button onClick={handleDeleteAll} className="w-full flex items-center gap-3 px-4 py-3 text-rose-600 hover:bg-rose-50 rounded-xl font-medium transition-all">
-            🗑️ Clear Database
+            <FaTrash className="text-lg" /> Clear Database
           </button>
         </nav>
 
@@ -95,7 +142,6 @@ function App() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 lg:ml-72 min-h-screen p-6 md:p-12">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-16">
           <div>
@@ -104,7 +150,11 @@ function App() {
           </div>
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => setShowModal(true)}
+              onClick={() => {
+                setEditId(null)
+                setFormData({ title: '', content: '', url: '' })
+                setShowModal(true)
+              }}
               className="px-6 py-3 bg-slate-900 text-white font-bold rounded-2xl hover:scale-105 transition-all shadow-xl shadow-slate-200"
             >
               + New Article
@@ -112,7 +162,6 @@ function App() {
           </div>
         </header>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-20">
           <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
             <div className="text-slate-400 font-bold text-xs uppercase tracking-widest mb-4">Total Documents</div>
@@ -128,13 +177,12 @@ function App() {
           </div>
         </div>
 
-        {/* ✨ ENHANCED SECTION */}
         {enhanced.length > 0 && (
           <section className="mb-24">
             <div className="flex items-center justify-between mb-12">
-              <h2 className="text-3xl font-black text-slate-900">✨ Optimized Content</h2>
+              <h2 className="text-3xl font-black text-slate-900 flex items-center gap-2"><HiSparkles className="text-emerald-600" /> Optimized Content</h2>
               <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-4 py-1.5 rounded-full border border-emerald-100">
-                LATEST AI ANALYST DATA
+                AI ANALYST DATA
               </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
@@ -185,11 +233,10 @@ function App() {
           </section>
         )}
 
-        {/* 📄 ORIGINAL SECTION */}
         {originals.length > 0 && (
           <section>
              <div className="flex items-center justify-between mb-12">
-              <h2 className="text-3xl font-black text-slate-900">📄 Source Material</h2>
+              <h2 className="text-3xl font-black text-slate-900 flex items-center gap-2"><IoDocumentText className="text-blue-600" /> Source Material</h2>
               <span className="text-sm font-bold text-blue-600 bg-blue-50 px-4 py-1.5 rounded-full border border-blue-100">
                 AWAITING ENHANCEMENT
               </span>
@@ -203,11 +250,22 @@ function App() {
                   <p className="text-slate-400 text-sm leading-relaxed line-clamp-4 mb-8 font-medium">
                     {article.content.slice(0, 180)}...
                   </p>
-                  <div className="flex items-center justify-between mt-auto">
+                  <div className="flex items-center justify-between mt-auto gap-2">
                     <span className="text-[10px] uppercase font-black text-slate-300">Raw Input</span>
-                    <button className="text-blue-600 font-black text-xs hover:underline uppercase tracking-widest">
-                      Edit Draft
-                    </button>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => handleEdit(article)}
+                        className="text-slate-400 font-bold text-xs hover:text-slate-600 uppercase tracking-widest transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        onClick={() => handleEnhance(article._id)}
+                        className="text-blue-600 font-black text-xs hover:text-blue-700 hover:underline uppercase tracking-widest transition-colors flex items-center gap-1"
+                      >
+                        <HiSparkles /> Enhance
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -216,12 +274,14 @@ function App() {
         )}
       </main>
 
-      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl p-10 relative animate-in fade-in zoom-in duration-300">
             <button 
-              onClick={() => setShowModal(false)}
+              onClick={() => {
+                setEditId(null)
+                setShowModal(false)
+              }}
               className="absolute top-8 right-8 text-slate-400 hover:text-slate-900 transition-colors"
             >
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,8 +289,12 @@ function App() {
               </svg>
             </button>
 
-            <h2 className="text-4xl font-black text-slate-900 mb-4">Define Your Vision</h2>
-            <p className="text-slate-500 font-medium mb-10">Input your core content. Our AI Engine will perform deep analysis and enhancement.</p>
+            <h2 className="text-4xl font-black text-slate-900 mb-4">
+              {editId ? 'Edit Article' : 'Define Your Vision'}
+            </h2>
+            <p className="text-slate-500 font-medium mb-10">
+              {editId ? 'Update your content details below.' : 'Input your core content. Our AI Engine will perform deep analysis and enhancement.'}
+            </p>
 
             <form onSubmit={handleCreate} className="space-y-6">
               <div>
@@ -260,7 +324,7 @@ function App() {
                   disabled={isSubmitting}
                   className="w-full py-5 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
                 >
-                  {isSubmitting ? 'Architecting...' : 'Deploy to Engine →'}
+                  {isSubmitting ? (editId ? 'Updating...' : 'Architecting...') : (editId ? 'Update Article' : 'Deploy to Engine →')}
                 </button>
               </div>
             </form>

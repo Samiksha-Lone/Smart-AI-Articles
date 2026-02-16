@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const articleSchema = new mongoose.Schema({
   title: { type: String, required: true, index: true },
   content: { type: String, required: true },
-  url: { type: String }, // Remove index to avoid potential duplicate key errors if index was previously unique
+  url: { type: String }, 
   excerpt: String,
   date: { type: Date, default: Date.now, index: true },
   image: String,
@@ -23,7 +23,7 @@ const articleSchema = new mongoose.Schema({
   },
   updatedAt: { type: Date, default: Date.now }
 }, {
-  writeConcern: { w: 1, wtimeout: 5000 }  // 5s timeout
+  writeConcern: { w: 1, wtimeout: 5000 } 
 });
 
 module.exports = mongoose.model('Article', articleSchema);
