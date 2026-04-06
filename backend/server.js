@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const articleRoutes = require('./routes/articles');
+const authRoutes = require('./routes/auth');
 require('dotenv').config();
 
 if (!process.env.MONGODB_URI) {
@@ -103,6 +104,7 @@ mongoose.connection.once('open', () => {
   })
 });
 
+app.use('/api/auth', authRoutes);
 app.use('/api/articles', articleRoutes);
 
 app.post('/api/scrape', async (req, res) => {
