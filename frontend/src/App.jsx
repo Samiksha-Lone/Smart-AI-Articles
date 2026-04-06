@@ -103,15 +103,18 @@ function App() {
   const [showDashboard, setShowDashboard] = useState(false)
 
   // ── Data fetching (updated for pagination) ────
-  const fetchArticles = (page = 1, search = '', status = '') => {
+  const fetchArticles = (page = 1, search = '', filter = '') => {
     if (!user) return
-    setLoading(true)
     const params = new URLSearchParams({
       page: page.toString(),
-      limit: '10',
-      ...(search && { search }),
-      ...(status && { status })
+      limit: '10'
     })
+
+    if (search) params.append('search', search)
+    
+    if (filter === 'original') params.append('original', 'true')
+    else if (filter === 'enhanced') params.append('original', 'false')
+    else if (filter) params.append('status', filter)
 
     axios.get(`${API_BASE}/articles?${params}`)
       .then(res => {
@@ -140,16 +143,17 @@ function App() {
 
   useEffect(() => { if (user) fetchAnalytics() }, [user])
 
-  // Poll for status updates when there are processing articles
+  // Poll for status updates when there are processing articles (Simplified & Stable)
+  const processingCount = articles.filter(a => a.status === 'processing').length;
   useEffect(() => {
-    const processingArticles = articles.filter(a => a.status === 'processing')
-    if (processingArticles.length > 0) {
+    if (processingCount > 0) {
       const interval = setInterval(() => {
-        fetchArticles(pagination.page, searchQuery, statusFilter)
-      }, 5000) // Poll every 5 seconds
+        fetchArticles(pagination.page)
+        fetchAnalytics()
+      }, 5000)
       return () => clearInterval(interval)
     }
-  }, [articles, pagination.page, searchQuery, statusFilter])
+  }, [processingCount, pagination.page])
 
   // ── Phase 4: Pagination & Search Handlers ────
   const handlePageChange = (newPage) => {
@@ -177,6 +181,8 @@ function App() {
         content: template.content,
         template: templateId
       })
+      setEditId(null)
+      setShowModal(true)
     }
   }
 
@@ -229,22 +235,54 @@ function App() {
     e.preventDefault()
     setIsSubmitting(true)
     try {
-      if (editId) {
-        await axios.put(`${API_BASE}/articles/${editId}`, { ...formData, original: true })
-      } else {
-        await axios.post(`${API_BASE}/articles`, { ...formData, original: true })
+      const payload = {
+        ...formData,
+        original: true
       }
+
+      if (!payload.url || payload.url.trim() === '') {
+        delete payload.url
+      }
+
+      let newArticleId = null
+      if (editId) {
+        await axios.put(`${API_BASE}/articles/${editId}`, payload)
+      } else {
+        const res = await axios.post(`${API_BASE}/articles`, payload)
+        newArticleId = res.data._id
+      }
+      
+      const shouldAutoEnhance = !editId && formData.autoEnhance;
+      
       setFormData({
         title: '',
         content: '',
         url: '',
         template: 'custom',
         writingStyle: 'formal',
-        tone: 'professional'
+        tone: 'professional',
+        autoEnhance: false
       })
       setEditId(null)
       setShowModal(false)
-      fetchArticles()
+      // On create, we usually want to see the new article, so we clear filters
+      setSearchQuery('')
+      setStatusFilter('')
+      fetchArticles(1, '', '')
+      fetchAnalytics()
+      
+      if (shouldAutoEnhance && newArticleId) {
+        try {
+          const response = await axios.post(`${API_BASE}/articles/${newArticleId}/enhance`)
+          if (response.data.message === 'Enhancement queued') {
+            alert('Enhancement queued! Processing in background...')
+          }
+          fetchArticles(1, '', '')
+          fetchAnalytics()
+        } catch (err) {
+          alert('Enhancement failed: ' + (err.response?.data?.message || err.message))
+        }
+      }
     } catch (err) {
       if (err.response?.status === 401) logout()
       else alert(err.response?.data?.message || 'Error saving article')
@@ -272,10 +310,23 @@ function App() {
       for (const article of articles) {
         await axios.delete(`${API_BASE}/articles/${article._id}`)
       }
-      fetchArticles()
+      fetchArticles(1, searchQuery, statusFilter)
+      fetchAnalytics()
     } catch (err) {
       if (err.response?.status === 401) logout()
       else alert('Error clearing articles')
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this article?')) return;
+    try {
+      await axios.delete(`${API_BASE}/articles/${id}`);
+      fetchArticles(pagination.page, searchQuery, statusFilter);
+      fetchAnalytics();
+    } catch (err) {
+      if (err.response?.status === 401) logout();
+      else alert('Failed to delete article: ' + (err.response?.data?.error || err.message));
     }
   }
 
@@ -292,7 +343,8 @@ function App() {
         alert('Enhancement queued! Processing in background...')
       }
       
-      fetchArticles()
+      fetchArticles(pagination.page, searchQuery, statusFilter)
+      fetchAnalytics()
     } catch (err) {
       if (err.response?.status === 401) logout()
       else {
@@ -347,7 +399,7 @@ function App() {
     ? <Login onSwitchToRegister={() => setAuthMode('register')} />
     : <Register onSwitchToLogin={() => setAuthMode('login')} />
 
-  if (loading) return (
+  if (loading && articles.length === 0) return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="relative w-14 h-14">
@@ -369,7 +421,7 @@ function App() {
      Main workspace render
   ─────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-[#F8FAFC] flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
 
       {/* ══ Top Navigation ══════════════════════════ */}
       <nav className="sticky top-0 z-20 h-[56px] bg-white/90 backdrop-blur-md border-b border-slate-200 px-5 flex items-center justify-between flex-shrink-0">
@@ -441,7 +493,7 @@ function App() {
       </nav>
 
       {/* ══ Split Workspace ═════════════════════════ */}
-      <div className="flex flex-1" style={{ height: 'calc(100vh - 56px)' }}>
+      <div className="flex flex-1 overflow-hidden min-h-0">
 
         {/* ── Phase 5: Dashboard Overlay ──────────── */}
         {showDashboard && (
@@ -458,48 +510,87 @@ function App() {
               </div>
               <div className="p-6">
                 {analytics ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6">
-                      <div className="text-2xl font-bold text-blue-900">{analytics.totalArticles}</div>
-                      <div className="text-sm text-blue-700">Total Articles</div>
-                    </div>
-                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-6">
-                      <div className="text-2xl font-bold text-emerald-900">{analytics.averageScores.readability}%</div>
-                      <div className="text-sm text-emerald-700">Avg Readability</div>
-                    </div>
-                    <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-xl p-6">
-                      <div className="text-2xl font-bold text-violet-900">{analytics.averageScores.engagement}%</div>
-                      <div className="text-sm text-violet-700">Avg Engagement</div>
-                    </div>
-                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-6">
-                      <div className="text-2xl font-bold text-amber-900">{analytics.averageScores.seo}%</div>
-                      <div className="text-sm text-amber-700">Avg SEO Score</div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-slate-500">Loading analytics...</div>
-                )}
-
-                {analytics?.lastArticle && (
-                  <div className="bg-slate-50 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4">Last Generated Article</h3>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-slate-900">{analytics.lastArticle.title}</div>
-                        <div className="text-sm text-slate-500">
-                          {new Date(analytics.lastArticle.date).toLocaleDateString()}
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                      <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">📄</div>
+                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Articles</div>
+                        </div>
+                        <div className="text-3xl font-black text-slate-900 mb-1">{analytics.totalArticles}</div>
+                        <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: '100%' }} />
                         </div>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        analytics.lastArticle.status === 'completed'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : analytics.lastArticle.status === 'processing'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-red-100 text-red-700'
-                      }`}>
-                        {analytics.lastArticle.status}
-                      </span>
+
+                      <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">✍️</div>
+                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Avg Readability</div>
+                        </div>
+                        <div className="text-3xl font-black text-slate-900 mb-1">{analytics.averageScores.readability}%</div>
+                        <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${analytics.averageScores.readability}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="p-2 bg-violet-50 text-violet-600 rounded-xl">🔥</div>
+                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Avg Engagement</div>
+                        </div>
+                        <div className="text-3xl font-black text-slate-900 mb-1">{analytics.averageScores.engagement}%</div>
+                        <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
+                          <div className="h-full bg-violet-500 rounded-full" style={{ width: `${analytics.averageScores.engagement}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">🚀</div>
+                          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Avg SEO Score</div>
+                        </div>
+                        <div className="text-3xl font-black text-slate-900 mb-1">{analytics.averageScores.seo}%</div>
+                        <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
+                          <div className="h-full bg-amber-500 rounded-full" style={{ width: `${analytics.averageScores.seo}%` }} />
+                        </div>
+                      </div>
                     </div>
+
+                    {analytics?.lastArticle && (
+                      <div className="bg-slate-50/80 backdrop-blur-sm border border-slate-100 rounded-2xl p-8">
+                        <div className="flex items-center justify-between mb-6">
+                          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Recent Activity</h3>
+                          <div className="text-xs text-slate-400">Latest enhancement tracker</div>
+                        </div>
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl">💡</div>
+                            <div>
+                              <div className="font-black text-slate-900 text-lg line-clamp-1">{analytics.lastArticle.title}</div>
+                              <div className="text-xs text-slate-400 font-medium">
+                                Optimized on {new Date(analytics.lastArticle.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right hidden sm:block">
+                              <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Status</div>
+                              <div className="text-xs font-black text-slate-900 uppercase">{analytics.lastArticle.status}</div>
+                            </div>
+                            <span className={`w-3 h-3 rounded-full animate-pulse ${
+                              analytics.lastArticle.status === 'completed' ? 'bg-emerald-500' :
+                              analytics.lastArticle.status === 'processing' ? 'bg-blue-500' : 'bg-rose-500'
+                            }`} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-20 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <div className="animate-spin-loader w-8 h-8 border-indigo-600 border-t-transparent border-4 rounded-full mx-auto mb-4" />
+                    <div className="text-sm text-slate-400 font-bold uppercase tracking-widest">Synthesizing Analytics...</div>
                   </div>
                 )}
               </div>
@@ -533,24 +624,56 @@ function App() {
               )}
             </div>
 
-            {/* Stats chips */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-slate-50 border border-slate-100 rounded-xl px-2 py-2.5 text-center">
-                <div className="text-lg font-bold text-slate-900 leading-none mb-1">{articles.length}</div>
-                <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest">Total</div>
-              </div>
-              <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-2 py-2.5 text-center">
-                <div className="text-lg font-bold text-indigo-600 leading-none mb-1">{originals.length}</div>
-                <div className="text-[10px] text-indigo-400 font-semibold uppercase tracking-widest">Originals</div>
-              </div>
-              <div className="bg-orange-50 border border-orange-100 rounded-xl px-2 py-2.5 text-center">
-                <div className="text-lg font-bold text-orange-600 leading-none mb-1">{articles.filter(a => a.status === 'processing').length}</div>
-                <div className="text-[10px] text-orange-400 font-semibold uppercase tracking-widest">Processing</div>
-              </div>
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-2 py-2.5 text-center">
-                <div className="text-lg font-bold text-emerald-600 leading-none mb-1">{enhanced.length}</div>
-                <div className="text-[10px] text-emerald-400 font-semibold uppercase tracking-widest">Enhanced</div>
-              </div>
+            {/* Stats chips - Persistent Dashboard Counts */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <button
+                onClick={() => handleStatusFilter('')}
+                className={`bg-white border rounded-2xl p-4 shadow-sm hover:shadow-md transition-all text-left ${
+                  statusFilter === '' ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 bg-blue-50 rounded-lg text-blue-500">📊</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total</div>
+                </div>
+                <div className="text-2xl font-black text-slate-900 leading-none">{analytics?.totalArticles || 0}</div>
+              </button>
+              <button
+                onClick={() => handleStatusFilter('original')}
+                className={`bg-white border rounded-2xl p-4 shadow-sm hover:shadow-md transition-all text-left ${
+                  statusFilter === 'original' ? 'border-amber-500 ring-1 ring-amber-500' : 'border-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 bg-amber-50 rounded-lg text-amber-500">✍️</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Originals</div>
+                </div>
+                <div className="text-2xl font-black text-slate-900 leading-none">{analytics?.totalOriginals || 0}</div>
+              </button>
+              <button
+                onClick={() => handleStatusFilter('processing')}
+                className={`bg-white border rounded-2xl p-4 shadow-sm hover:shadow-md transition-all text-left ${
+                  statusFilter === 'processing' ? 'border-orange-500 ring-1 ring-orange-500' : 'border-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 bg-orange-50 rounded-lg text-orange-500">⚡</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Processing</div>
+                </div>
+                <div className="text-2xl font-black text-slate-900 leading-none">{analytics?.totalProcessing || 0}</div>
+              </button>
+              <button
+                onClick={() => handleStatusFilter('enhanced')}
+                className={`bg-white border rounded-2xl p-4 shadow-sm hover:shadow-md transition-all text-left ${
+                  statusFilter === 'enhanced' ? 'border-emerald-500 ring-1 ring-emerald-500' : 'border-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 bg-emerald-50 rounded-lg text-emerald-500">🌟</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Enhanced</div>
+                </div>
+                <div className="text-2xl font-black text-slate-900 leading-none">{analytics?.totalEnhanced || 0}</div>
+              </button>
             </div>
           </div>
 
@@ -698,6 +821,13 @@ function App() {
                               Edit
                             </button>
                             <span className="text-slate-200 select-none">|</span>
+                            <button
+                              onClick={() => handleDelete(article._id)}
+                              className="text-[11px] text-rose-400 hover:text-rose-600 font-semibold transition-colors"
+                            >
+                              Delete
+                            </button>
+                            <span className="text-slate-200 select-none">|</span>
                             {article.status === 'pending' && (
                               <button
                                 onClick={() => handleEnhance(article._id)}
@@ -754,269 +884,226 @@ function App() {
         <section
           className={`
             ${activePanel !== 'output' ? 'hidden md:flex' : 'flex'}
-            flex-1 flex-col overflow-y-auto bg-[#F8FAFC] p-5 lg:p-8
+            flex-1 flex-col overflow-y-auto bg-[#F8FAFC] p-5 lg:p-8 relative
           `}
         >
-          {/* Right panel header */}
-          <div className="flex items-center justify-between mb-6 flex-shrink-0">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <HiSparkles className="text-indigo-500" />
-                AI Enhanced Output
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {enhanced.length > 0
-                  ? `${enhanced.length} article${enhanced.length !== 1 ? 's' : ''} enhanced and ready`
-                  : 'Your enhanced articles will appear here'}
-              </p>
-            </div>
-            {enhanced.length > 0 && (
-              <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-                ● AI Optimized
-              </span>
-            )}
-          </div>
+          {/* Right panel header & Search */}
+          <div className="flex flex-col gap-6 mb-8 flex-shrink-0">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black text-slate-900 flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center">
+                    <HiSparkles className="text-lg" />
+                  </div>
+                  Workspace Dashboard
+                </h2>
+                <p className="text-xs text-slate-400 mt-1 font-medium ml-10.5">
+                  Showing {articles.length} article{articles.length !== 1 ? 's' : ''} in this view
+                </p>
+              </div>
 
-          {/* Phase 4: Search & Filter Controls */}
-          <div className="bg-white rounded-xl border border-slate-100 p-4 mb-6 flex-shrink-0">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1">
+              {/* Enhanced Search Bar */}
+              <div className="relative group w-full lg:max-w-md">
+                <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                  <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
                 <input
                   type="text"
-                  placeholder="Search articles..."
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Find an article..."
+                  className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-10 py-3.5 text-sm font-semibold placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all shadow-sm shadow-slate-100/50"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => handleSearch('')}
+                    className="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
-              <div className="flex gap-2">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => handleStatusFilter(e.target.value)}
-                  className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="processing">Processing</option>
-                  <option value="completed">Completed</option>
-                  <option value="failed">Failed</option>
-                </select>
-              </div>
+            </div>
+
+            {/* Horizontal Filter Tabs */}
+            <div className="flex items-center gap-2 p-1.5 bg-slate-100/50 border border-slate-200/60 rounded-2xl w-fit">
+              <button
+                onClick={() => handleStatusFilter('')}
+                className={`px-5 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-200 ${
+                  statusFilter === '' 
+                    ? 'bg-white text-indigo-600 shadow-sm shadow-indigo-100 ring-1 ring-slate-200' 
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Total
+              </button>
+              <button
+                onClick={() => handleStatusFilter('original')}
+                className={`px-5 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-200 ${
+                  statusFilter === 'original' 
+                    ? 'bg-white text-emerald-600 shadow-sm shadow-emerald-100 ring-1 ring-slate-200' 
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Originals
+              </button>
+              <button
+                onClick={() => handleStatusFilter('enhanced')}
+                className={`px-5 py-2 text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-200 ${
+                  statusFilter === 'enhanced' 
+                    ? 'bg-white text-violet-600 shadow-sm shadow-violet-100 ring-1 ring-slate-200' 
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Enhanced
+              </button>
             </div>
           </div>
 
-          {/* Enhanced article cards */}
-          {enhanced.length > 0 ? (
+          {/* Main Article Feed */}
+          {articles.length > 0 ? (
             <>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 pb-10">
-              {enhanced.map((article, idx) => (
+            <div className="flex flex-col gap-6 pb-10 w-full">
+              {articles.map((article, idx) => (
                 <div
                   key={article._id}
-                  className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/60 hover:-translate-y-1 transition-all duration-300 overflow-hidden animate-slide-up"
+                  className="group bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-300 overflow-hidden animate-slide-up"
                   style={{ animationDelay: `${idx * 70}ms` }}
                 >
-                  {/* Accent stripe */}
-                  <div className="h-[3px] bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500" />
+                  {/* Accent stripe - different color for original vs enhanced */}
+                  <div className={`h-[4.5px] ${
+                    article.original 
+                      ? 'bg-gradient-to-r from-emerald-400 to-teal-500' 
+                      : 'bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500'
+                  }`} />
 
-                  <div className="p-6">
-                    {/* Sentiment + tone badges */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
-                        article.analytics?.sentiment === 'Positive'
+                  <div className="p-8 md:p-10">
+                    {/* Badge Row */}
+                    <div className="flex flex-wrap items-center gap-2 mb-6">
+                      <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
+                        article.original
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                          : article.analytics?.sentiment === 'Negative'
-                          ? 'bg-rose-50 text-rose-700 border-rose-100'
-                          : 'bg-slate-50 text-slate-600 border-slate-100'
+                          : 'bg-indigo-50 text-indigo-700 border-indigo-100'
                       }`}>
-                        {article.analytics?.sentiment || 'Neutral'}
+                        {article.original ? '✍️ Original Draft' : '✨ AI Enhanced'}
                       </span>
-                      <span className="inline-flex items-center px-2.5 py-1 bg-slate-50 text-slate-500 text-[10px] font-bold rounded-lg border border-slate-100 uppercase tracking-wider">
-                        {article.analytics?.tone || 'Professional'}
+                      
+                      {!article.original && article.analytics?.sentiment && (
+                        <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border ${
+                          article.analytics.sentiment === 'Positive'
+                            ? 'bg-blue-50 text-blue-700 border-blue-100'
+                            : 'bg-slate-50 text-slate-600 border-slate-100'
+                        }`}>
+                          {article.analytics.sentiment} Tone
+                        </span>
+                      )}
+
+                      <span className="inline-flex items-center px-3 py-1.5 bg-slate-50 text-slate-500 text-[10px] font-bold rounded-xl border border-slate-100 uppercase tracking-wider ml-auto">
+                        🕒 {Math.ceil((article.content || '').split(/\s+/).length / 200)} min read
                       </span>
                     </div>
 
-                    {/* Title — inline editable */}
-                    <h3
-                      contentEditable
-                      suppressContentEditableWarning
-                      className="text-[15px] font-bold text-slate-900 group-hover:text-indigo-700 mb-3 leading-snug outline-none transition-colors cursor-text"
-                      spellCheck={false}
-                    >
-                      {article.title}
-                    </h3>
-
-                    {/* Excerpt */}
-                    <p className="text-sm text-slate-500 leading-relaxed line-clamp-3 mb-5">
-                      {article.excerpt || (article.content?.slice(0, 180) + '…')}
-                    </p>
-
-                    {/* Mini analytics */}
-                    <div className="grid grid-cols-2 gap-2.5 mb-5">
-                      <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Readability</div>
-                        <div className="text-sm font-bold text-slate-900">
-                          {article.analytics?.readabilityScore || 85}%
-                        </div>
-                      </div>
-                      <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Keywords</div>
-                        <div className="text-sm font-bold text-slate-900">
-                          {article.analytics?.keywords?.length || 5}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Phase 3: AI Intelligence Cards */}
-                    {article.analytics?.aiScores && (
-                      <div className="space-y-3 mb-5">
-                        {/* AI Scores */}
-                        <div className="bg-gradient-to-r from-indigo-50 to-violet-50 rounded-xl p-4 border border-indigo-100">
-                          <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                            <HiSparkles className="text-sm" />
-                            AI Scores
-                          </h4>
-                          <div className="grid grid-cols-3 gap-3">
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-indigo-600 mb-1">
-                                {article.analytics.aiScores.readability || 0}
-                              </div>
-                              <div className="text-[9px] text-indigo-500 font-semibold uppercase tracking-wider">
-                                Readability
-                              </div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-violet-600 mb-1">
-                                {article.analytics.aiScores.engagement || 0}
-                              </div>
-                              <div className="text-[9px] text-violet-500 font-semibold uppercase tracking-wider">
-                                Engagement
-                              </div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-purple-600 mb-1">
-                                {article.analytics.aiScores.seo || 0}
-                              </div>
-                              <div className="text-[9px] text-purple-500 font-semibold uppercase tracking-wider">
-                                SEO
-                              </div>
-                            </div>
-                          </div>
-                          <div className="mt-3 pt-3 border-t border-indigo-200">
-                            <div className="text-xs text-indigo-600">
-                              <span className="font-semibold">{article.analytics.aiScores.wordCount || 0}</span> words • 
-                              <span className="font-semibold ml-1">{article.analytics.aiScores.sentenceCount || 0}</span> sentences • 
-                              <span className="font-semibold ml-1">{article.analytics.aiScores.avgSentenceLength || 0}</span> avg length
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Suggestions */}
-                        {article.analytics?.suggestions && article.analytics.suggestions.length > 0 && (
-                          <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
-                            <h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                              💡 Suggestions
-                            </h4>
-                            <div className="space-y-2">
-                              {article.analytics.suggestions.slice(0, 3).map((suggestion, idx) => (
-                                <div key={idx} className="flex items-start gap-2">
-                                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
-                                    suggestion.severity === 'high' ? 'bg-red-400' :
-                                    suggestion.severity === 'medium' ? 'bg-amber-400' : 'bg-blue-400'
-                                  }`} />
-                                  <div className="text-xs text-amber-800 leading-relaxed">
-                                    {suggestion.message}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Keyword Analysis */}
-                        {article.analytics?.keywordAnalysis && (
-                          <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
-                            <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                              🔍 Keywords
-                            </h4>
-                            <div className="space-y-2">
-                              {article.analytics.keywordAnalysis.topKeywords?.slice(0, 5).map((kw, idx) => (
-                                <div key={idx} className="flex items-center justify-between">
-                                  <span className="text-xs font-medium text-emerald-800">{kw.word}</span>
-                                  <span className="text-xs bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-bold">
-                                    {kw.count}
-                                  </span>
-                                </div>
-                              ))}
-                              {article.analytics.keywordAnalysis.missingKeywords?.length > 0 && (
-                                <div className="pt-2 border-t border-emerald-200">
-                                  <div className="text-xs text-emerald-600 font-semibold mb-1">Consider adding:</div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {article.analytics.keywordAnalysis.missingKeywords.slice(0, 3).map((kw, idx) => (
-                                      <span key={idx} className="text-xs bg-white text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
-                                        {kw}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                    {/* Title (Only show if not showing enhanced content, as enhanced content usually contains the title already) */}
+                    {(article.original || article.showOriginal || !article.enhancedContent) && (
+                      <h1
+                        className="text-2xl md:text-3xl font-extrabold text-slate-900 group-hover:text-indigo-700 mb-6 leading-tight outline-none transition-colors"
+                      >
+                        {article.title}
+                      </h1>
                     )}
 
-                    {/* Output actions */}
-                    <div className="flex items-center gap-2 pt-4 border-t border-slate-50">
-                      {/* Copy */}
+                    {/* Content area */}
+                    <div className="relative">
+                      {/* Comparison Toggle (Only for Enhanced) */}
+                      {!article.original && (
+                        <div className="flex items-center justify-end gap-2 mb-4">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider ${!article.showOriginal ? 'text-indigo-600' : 'text-slate-400'}`}>Enhanced AI</span>
+                          <button
+                            onClick={() => {
+                              setArticles(articles.map(a => a._id === article._id ? { ...a, showOriginal: !a.showOriginal } : a));
+                            }}
+                            className={`w-8 h-4 rounded-full relative transition-colors duration-200 ${article.showOriginal ? 'bg-amber-400' : 'bg-indigo-600'}`}
+                          >
+                            <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-200 ${article.showOriginal ? 'left-[17px]' : 'left-0.5'}`} />
+                          </button>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider ${article.showOriginal ? 'text-amber-600' : 'text-slate-400'}`}>Original Draft</span>
+                        </div>
+                      )}
+
+                      <div 
+                        className={`prose-container text-[16px] leading-relaxed mb-8 max-h-[500px] overflow-y-auto pr-6 custom-scrollbar transition-all duration-300 ${
+                          article.original || article.showOriginal ? 'text-slate-500 italic font-medium' : 'text-slate-700 font-normal'
+                        }`}
+                        dangerouslySetInnerHTML={{ 
+                          __html: (article.original || article.showOriginal) ? article.content : (article.enhancedContent || article.content) 
+                        }}
+                      />
+                    </div>
+
+                    {/* AI Insights (Only for Enhanced) */}
+                    {!article.original && article.analytics?.aiScores && (
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
+                         <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/50">
+                            <div className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mb-1">Readability</div>
+                            <div className="text-xl font-black text-indigo-700">{article.analytics.aiScores.readability || 0}%</div>
+                         </div>
+                         <div className="bg-violet-50/50 rounded-2xl p-4 border border-violet-100/50">
+                            <div className="text-[10px] text-violet-400 font-black uppercase tracking-widest mb-1">Engagement</div>
+                            <div className="text-xl font-black text-violet-700">{article.analytics.aiScores.engagement || 0}%</div>
+                         </div>
+                         <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/50">
+                            <div className="text-[10px] text-emerald-400 font-black uppercase tracking-widest mb-1">SEO Score</div>
+                            <div className="text-xl font-black text-emerald-700">{article.analytics.aiScores.seo || 0}%</div>
+                         </div>
+                       </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex flex-wrap items-center gap-3 pt-6 border-t border-slate-100">
                       <button
                         onClick={() => handleCopy(article)}
-                        title="Copy to clipboard"
-                        className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition-all duration-200 ${
+                        className={`flex items-center gap-2 text-xs font-bold px-5 py-2.5 rounded-xl border transition-all duration-200 ${
                           copiedId === article._id
                             ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                            : 'bg-white text-slate-500 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                         }`}
                       >
                         {copiedId === article._id ? <CheckIcon /> : <CopyIcon />}
-                        {copiedId === article._id ? 'Copied!' : 'Copy'}
+                        {copiedId === article._id ? 'Copied!' : 'Copy content'}
                       </button>
 
-                      {/* View insights */}
-                      <a
-                        href={article.url?.startsWith('http') ? article.url : `https://google.com/search?q=${encodeURIComponent(article.title)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs font-semibold px-3 py-2 bg-white text-slate-500 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all"
-                      >
-                        View Insights ↗
-                      </a>
+                      {article.original && (
+                         <button
+                           onClick={() => handleEnhance(article._id)}
+                           className="flex items-center gap-2 text-xs font-bold px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-md shadow-indigo-100 transition-all ml-auto"
+                         >
+                           <HiSparkles className="text-sm" />
+                           Enhance with AI
+                         </button>
+                      )}
 
-                      {/* Phase 5: Export Options */}
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleExport(article._id, 'json')}
-                          title="Export as JSON"
-                          className="flex items-center gap-1 text-xs font-semibold px-2 py-2 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl hover:bg-emerald-100 hover:border-emerald-200 transition-all"
-                        >
-                          📄
-                        </button>
-                        <button
-                          onClick={() => handleExport(article._id, 'txt')}
-                          title="Export as Text"
-                          className="flex items-center gap-1 text-xs font-semibold px-2 py-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl hover:bg-blue-100 hover:border-blue-200 transition-all"
-                        >
-                          📝
-                        </button>
-                      </div>
-
-                      {/* Regenerate */}
+                      {!article.original && (
+                         <div className="flex items-center gap-3 ml-auto">
+                           <button
+                             onClick={() => handleRegenerate(article._id)}
+                             className="flex items-center gap-2 text-xs font-bold px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-md shadow-indigo-100 transition-all"
+                           >
+                             <HiSparkles className="text-sm" />
+                             Regenerate
+                           </button>
+                         </div>
+                      )}
+                      
                       <button
-                        onClick={() => handleRegenerate(article._id)}
-                        title="Regenerate with AI"
-                        className="ml-auto flex items-center gap-1.5 text-xs font-semibold px-3 py-2 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-100 hover:border-indigo-200 transition-all"
+                        onClick={() => handleDelete(article._id)}
+                        className="p-2.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                        title="Delete Article"
                       >
-                        <HiSparkles className="text-xs" />
-                        Regenerate
+                        <FaTrash className="text-sm" />
                       </button>
                     </div>
                   </div>
@@ -1053,7 +1140,7 @@ function App() {
             </>
           ) : (
             /* ── Empty output state ──────────────── */
-            <div className="flex-1 flex flex-col items-center justify-center text-center py-16">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
               <div className="relative mb-6">
                 <div className="w-20 h-20 bg-gradient-to-br from-indigo-50 to-violet-100 rounded-[1.75rem] flex items-center justify-center shadow-sm">
                   <HiSparkles className="text-indigo-400 text-3xl" />
@@ -1139,6 +1226,22 @@ function App() {
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all resize-none leading-relaxed"
                 />
               </div>
+              
+              {!editId && (
+                <div className="flex items-center gap-3 p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl hover:bg-indigo-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    id="auto-enhance-checkbox"
+                    checked={formData.autoEnhance || false}
+                    onChange={(e) => setFormData({ ...formData, autoEnhance: e.target.checked })}
+                    className="w-4 h-4 flex-shrink-0 text-indigo-600 rounded border-indigo-200 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <label htmlFor="auto-enhance-checkbox" className="text-sm text-slate-700 font-semibold cursor-pointer select-none flex-1">
+                    ✨ Enhance immediately with AI
+                  </label>
+                </div>
+              )}
+
               <button
                 id="article-submit-btn"
                 type="submit"
@@ -1151,7 +1254,7 @@ function App() {
                     {editId ? 'Updating…' : 'Saving…'}
                   </>
                 ) : (
-                  editId ? '✓ Update Article' : 'Save & Enhance Later →'
+                  editId ? '✓ Update Article' : 'Save Article'
                 )}
               </button>
             </form>

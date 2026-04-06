@@ -1,11 +1,12 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const { Worker, QueueScheduler } = require('bullmq');
-const redisConnection = require('../config/redis');
+const createRedisConnection = require('../config/redis');
 const Article = require('../models/Article');
 const { enhanceContent } = require('../services/aiService');
 
 const queueName = 'article-enhancement';
+const redisConnection = createRedisConnection();
 new QueueScheduler(queueName, { connection: redisConnection });
 
 const connectToMongo = async () => {
@@ -55,13 +56,36 @@ const runWorker = async () => {
         template: article.template
       });
 
-      article.enhancedContent = enhancedData.enhancedContent;
-      article.analytics = enhancedData.analytics;
-      article.status = 'completed';
-      article.enhancedAt = new Date();
-      article.updatedAt = new Date();
+      if (job.data.isRegeneration) {
+        article.title = enhancedData.enhancedTitle || article.title;
+        article.enhancedContent = enhancedData.enhancedContent;
+        // Update content and excerpt so the frontend cards show the new regenerated text
+        article.content = enhancedData.enhancedContent;
+        article.excerpt = enhancedData.summary || enhancedData.enhancedContent.slice(0, 200);
+        article.analytics = enhancedData.analytics;
+        article.status = 'completed';
+        article.enhancedAt = new Date();
+        article.updatedAt = new Date();
+        await article.save();
+      } else {
+        const enhanced = new Article({
+          title: enhancedData.enhancedTitle || article.title,
+          content: enhancedData.enhancedContent,
+          excerpt: enhancedData.summary || enhancedData.enhancedContent.slice(0, 200),
+          url: article.url,
+          user: article.user,
+          original: false,
+          enhancedContent: enhancedData.enhancedContent,
+          analytics: enhancedData.analytics,
+          status: 'completed',
+          enhancedAt: new Date(),
+        });
+        await enhanced.save();
 
-      await article.save();
+        article.status = 'completed';
+        article.updatedAt = new Date();
+        await article.save();
+      }
 
       return {
         articleId,

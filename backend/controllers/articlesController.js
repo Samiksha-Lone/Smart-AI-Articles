@@ -1,7 +1,13 @@
 const Article = require('../models/Article');
-const articleEnhancementQueue = require('../queues/articleQueue');
+const { getArticleEnhancementQueue } = require('../queues/articleQueue');
 const { enhanceContent } = require('../services/aiService');
 const logger = require('../services/loggerService');
+
+const sanitizeUrl = (url) => {
+  if (typeof url !== 'string') return undefined;
+  const trimmed = url.trim();
+  return trimmed === '' ? undefined : trimmed;
+};
 
 const getArticles = async (req, res) => {
   try {
@@ -9,6 +15,7 @@ const getArticles = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const search = req.query.search || '';
     const status = req.query.status; // 'pending', 'processing', 'completed', 'failed'
+    const original = req.query.original; // 'true' or 'false'
 
     const query = { user: req.userId };
 
@@ -23,6 +30,11 @@ const getArticles = async (req, res) => {
     // Add status filter
     if (status) {
       query.status = status;
+    }
+
+    // Add original filter
+    if (original !== undefined) {
+      query.original = original === 'true';
     }
 
     const skip = (page - 1) * limit;
@@ -62,22 +74,42 @@ const getArticleById = async (req, res) => {
 
 const createArticle = async (req, res) => {
   try {
-    const article = new Article({
-      ...req.body,
+    const articleData = {
+      title: req.body.title,
+      content: req.body.content,
+      url: sanitizeUrl(req.body.url),
+      excerpt: req.body.excerpt,
+      image: req.body.image,
+      original: req.body.original,
+      template: req.body.template,
+      writingStyle: req.body.writingStyle,
+      tone: req.body.tone,
       user: req.userId,
       status: 'pending',
       enhancedContent: undefined,
       failureReason: undefined,
-      // Phase 5: Initialize with first version
       versions: [{
         content: req.body.content,
         version: 1,
         createdAt: new Date()
       }]
-    });
+    };
+
+    if (articleData.url === undefined) {
+      delete articleData.url;
+    }
+
+    const article = new Article(articleData);
     await article.save();
     res.status(201).json(article);
   } catch (error) {
+    console.error('[Articles Controller] createArticle error:', error);
+    if (error.code === 11000) {
+      return res.status(409).json({
+        error: 'Duplicate value conflict. Please change the URL or leave it blank.',
+        details: error.keyValue
+      });
+    }
     res.status(500).json({
       error: error.message,
       details: error.name === 'ValidationError' ? error.errors : null
@@ -87,9 +119,19 @@ const createArticle = async (req, res) => {
 
 const updateArticle = async (req, res) => {
   try {
+    const updates = {
+      ...req.body,
+      url: sanitizeUrl(req.body.url),
+      updatedAt: new Date()
+    };
+
+    if (updates.url === undefined) {
+      delete updates.url;
+    }
+
     const article = await Article.findOneAndUpdate(
       { _id: req.params.id, user: req.userId },
-      { ...req.body, updatedAt: new Date() },
+      updates,
       { new: true }
     );
     if (!article) return res.status(404).json({ error: 'Article not found' });
@@ -131,7 +173,8 @@ const enhanceArticle = async (req, res) => {
     // ── Try queue first (Redis path) ──────────────────────
     let queuedSuccessfully = false;
     try {
-      await articleEnhancementQueue.add(
+      const queue = getArticleEnhancementQueue();
+      await queue.add(
         `enhance-article-${article._id}`,
         { articleId: article._id.toString() },
         {
@@ -157,9 +200,9 @@ const enhanceArticle = async (req, res) => {
 
       // Create a new enhanced article document (mirrors worker behaviour)
       const enhanced = new Article({
-        title: article.title,
+        title: enhancedData.enhancedTitle || article.title,
         content: enhancedData.enhancedContent,
-        excerpt: enhancedData.enhancedContent.slice(0, 200),
+        excerpt: enhancedData.summary || enhancedData.enhancedContent.slice(0, 200),
         url: article.url,
         user: article.user,
         original: false,
@@ -224,8 +267,16 @@ const getAnalytics = async (req, res) => {
       .sort({ enhancedAt: -1 })
       .select('title enhancedAt status');
 
+    // Separate counts for the sidebar mapping
+    const totalOriginals = await Article.countDocuments({ user: userId, original: true });
+    const totalEnhanced = await Article.countDocuments({ user: userId, original: false });
+    const totalProcessing = await Article.countDocuments({ user: userId, status: 'processing' });
+
     res.json({
       totalArticles,
+      totalOriginals,
+      totalEnhanced,
+      totalProcessing,
       averageScores: {
         readability: Math.round(avgReadability),
         engagement: Math.round(avgEngagement),
@@ -274,7 +325,8 @@ const regenerateArticle = async (req, res) => {
 
     // Queue the enhancement
     try {
-      await articleEnhancementQueue.add(
+      const queue = getArticleEnhancementQueue();
+      await queue.add(
         `regenerate-article-${article._id}`,
         { articleId: article._id.toString(), isRegeneration: true },
         {
@@ -289,7 +341,11 @@ const regenerateArticle = async (req, res) => {
       // Fallback to direct enhancement
       try {
         const enhancedData = await enhanceContent(article.content, article.title);
+
+        article.title = enhancedData.enhancedTitle || article.title;
         article.enhancedContent = enhancedData.enhancedContent;
+        article.content = enhancedData.enhancedContent;
+        article.excerpt = enhancedData.summary || enhancedData.enhancedContent.slice(0, 200);
         article.analytics = enhancedData.analytics;
         article.status = 'completed';
         article.enhancedAt = new Date();

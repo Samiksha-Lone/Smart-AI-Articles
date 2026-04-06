@@ -115,10 +115,13 @@ npm run dev
 
 ## 🔮 Future Improvements
 
-- real-time collaboration and live editing
-- richer SEO keyword extraction and content recommendations
-- downloadable PDF export
-- improved retry/queue monitoring dashboard
+- **Multi-User Collaboration**: Team workspaces with shared article access, permission levels, and reviewer comments.
+- **Advanced Version History**: Detailed snapshots for each enhancement, allowing users to compare and revert to previous AI versions.
+- **Rich Text (WYSIWYG) Editor**: Integration of TipTap or Quill.js for advanced formatting (bold, links, headers) within the workspace.
+- **Social Media Integration**: One-click publishing and cross-posting directly to LinkedIn, Medium, and WordPress.
+- **SEO Keyword Tracking**: Real-time keyword density analysis and content optimization recommendations.
+- **PDF Export**: Download professional, pre-formatted PDF copies of enhanced articles for offline use.
+- **Queue Monitoring Dashboard**: A dedicated UI for tracking background AI jobs and managing retries.
 
 ## License
 
