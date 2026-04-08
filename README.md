@@ -180,5 +180,5 @@ The platform ensures reliable, scalable content enhancement through queue-based 
 ## 📬 Contact
 
 **Samiksha Balaji Lone**  
-📧 samikshalone2@gmail.com
+📧 samikshalone2@gmail.com  
 🔗 [LinkedIn](https://linkedin.com/in/samiksha-lone) | [Portfolio](https://samiksha-lone.vercel.app/)
