@@ -22,14 +22,12 @@ const Login = ({ onSwitchToRegister }) => {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Soft background blobs */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-32 -right-32 w-[420px] h-[420px] bg-indigo-100 rounded-full blur-3xl opacity-50" />
         <div className="absolute -bottom-32 -left-32 w-[420px] h-[420px] bg-violet-100 rounded-full blur-3xl opacity-50" />
       </div>
 
       <div className="relative w-full max-w-[400px] animate-fade-in">
-        {/* Brand */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 bg-indigo-600 rounded-2xl mb-4 shadow-lg shadow-indigo-200">
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -40,9 +38,7 @@ const Login = ({ onSwitchToRegister }) => {
           <p className="text-slate-500 text-sm mt-1.5">Sign in to your workspace</p>
         </div>
 
-        {/* Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 p-8">
-          {/* Error */}
           {error && (
             <div className="mb-5 flex items-start gap-3 bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 animate-fade-in">
               <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -53,7 +49,6 @@ const Login = ({ onSwitchToRegister }) => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
             <div>
               <label htmlFor="email" className="block text-xs font-semibold text-slate-600 uppercase tracking-widest mb-2">
                 Email address
@@ -71,7 +66,6 @@ const Login = ({ onSwitchToRegister }) => {
               />
             </div>
 
-            {/* Password */}
             <div>
               <label htmlFor="password" className="block text-xs font-semibold text-slate-600 uppercase tracking-widest mb-2">
                 Password
@@ -89,7 +83,6 @@ const Login = ({ onSwitchToRegister }) => {
               />
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
               id="login-submit-btn"
@@ -108,7 +101,6 @@ const Login = ({ onSwitchToRegister }) => {
           </form>
         </div>
 
-        {/* Switch to register */}
         <p className="text-center text-sm text-slate-500 mt-6">
           Don&apos;t have an account?{' '}
           <button

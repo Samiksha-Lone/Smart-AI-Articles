@@ -1,4 +1,3 @@
-// Simple logger service for student project
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -39,7 +38,6 @@ class LoggerService {
       console.log(consoleMessage);
     }
 
-    // File logging (optional for student project)
     try {
       const logLine = JSON.stringify(logEntry) + '\n';
       await fs.appendFile(LOG_FILE, logLine);

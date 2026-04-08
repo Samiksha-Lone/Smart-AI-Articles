@@ -12,7 +12,7 @@ const API_BASE = window.location.hostname === 'localhost'
   ? 'http://localhost:5000/api'
   : 'https://beyondchats-assignment-backend.onrender.com/api'
 
-/* ── Phase 5: Enhanced Templates ──────────────────────── */
+
 const TEMPLATES = [
   {
     id: 'blog',
@@ -44,7 +44,7 @@ const TEMPLATES = [
   },
 ]
 
-/* ── Spinner helper ─────────────────────────────── */
+
 const Spinner = ({ size = 'md' }) => {
   const s = size === 'sm' ? 'w-3.5 h-3.5 border-[2px]' : 'w-5 h-5 border-[2.5px]'
   return (
@@ -52,7 +52,7 @@ const Spinner = ({ size = 'md' }) => {
   )
 }
 
-/* ── Copy icon ──────────────────────────────────── */
+
 const CopyIcon = () => (
   <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
@@ -66,13 +66,10 @@ const CheckIcon = () => (
   </svg>
 )
 
-/* ═══════════════════════════════════════════════════
-   App
-═══════════════════════════════════════════════════ */
+
 function App() {
   const { user, logout, loading: authLoading } = useAuth()
 
-  // ── State (all original) ──────────────────────
   const [articles, setArticles]       = useState([])
   const [loading, setLoading]         = useState(true)
   const [showModal, setShowModal]     = useState(false)
@@ -88,21 +85,17 @@ function App() {
   const [editId, setEditId]           = useState(null)
   const [authMode, setAuthMode]       = useState('login')
 
-  // ── New UI state ──────────────────────────────
   const [copiedId, setCopiedId]       = useState(null)
-  const [activePanel, setActivePanel] = useState('input') // mobile tab
+  const [activePanel, setActivePanel] = useState('input') 
 
-  // ── Phase 4: Pagination & Search ──────────────
   const [pagination, setPagination]   = useState({ page: 1, limit: 10, total: 0, pages: 0 })
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
 
-  // ── Phase 5: Dashboard & Personalization ──────
   const [analytics, setAnalytics]     = useState(null)
   const [selectedTemplate, setSelectedTemplate] = useState('custom')
   const [showDashboard, setShowDashboard] = useState(false)
 
-  // ── Data fetching (updated for pagination) ────
   const fetchArticles = (page = 1, search = '', filter = '') => {
     if (!user) return
     const params = new URLSearchParams({
@@ -133,7 +126,6 @@ function App() {
 
   useEffect(() => { if (user) fetchArticles() }, [user])
 
-  // ── Phase 5: Analytics Dashboard ──────────────
   const fetchAnalytics = () => {
     if (!user) return
     axios.get(`${API_BASE}/articles/analytics/dashboard`)
@@ -143,7 +135,6 @@ function App() {
 
   useEffect(() => { if (user) fetchAnalytics() }, [user])
 
-  // Poll for status updates when there are processing articles (Simplified & Stable)
   const processingCount = articles.filter(a => a.status === 'processing').length;
   useEffect(() => {
     if (processingCount > 0) {
@@ -155,7 +146,6 @@ function App() {
     }
   }, [processingCount, pagination.page])
 
-  // ── Phase 4: Pagination & Search Handlers ────
   const handlePageChange = (newPage) => {
     fetchArticles(newPage, searchQuery, statusFilter)
   }
@@ -170,7 +160,6 @@ function App() {
     fetchArticles(1, searchQuery, status)
   }
 
-  // ── Phase 5: New Handlers ─────────────────────
   const handleTemplateSelect = (templateId) => {
     setSelectedTemplate(templateId)
     const template = TEMPLATES.find(t => t.id === templateId)
@@ -189,7 +178,6 @@ function App() {
   const handleRegenerate = async (articleId) => {
     try {
       await axios.post(`${API_BASE}/articles/${articleId}/regenerate`)
-      // Refresh articles and analytics
       fetchArticles(pagination.page, searchQuery, statusFilter)
       fetchAnalytics()
       alert('Article regeneration started! Check back in a moment.')
@@ -198,39 +186,7 @@ function App() {
       alert('Failed to regenerate article. Please try again.')
     }
   }
-
-  const handleExport = async (articleId, format = 'json') => {
-    try {
-      const response = await axios.get(`${API_BASE}/articles/${articleId}/export`)
-      const data = response.data
-
-      if (format === 'json') {
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${data.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      } else if (format === 'txt') {
-        const content = `# ${data.title}\n\n${data.content}\n\n---\nExported from Smart AI Articles`
-        const blob = new Blob([content], { type: 'text/plain' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${data.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      }
-    } catch (error) {
-      console.error('Export failed:', error)
-      alert('Failed to export article. Please try again.')
-    }
-  }
+  
   const handleCreate = async (e) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -357,7 +313,6 @@ function App() {
     }
   }
 
-  // ── New helper handlers ───────────────────────
   const handleCopy = (article) => {
     const text = `${article.title}\n\n${article.content || article.excerpt || ''}`
     navigator.clipboard.writeText(text).then(() => {
@@ -379,13 +334,11 @@ function App() {
     setShowModal(true)
   }
 
-  /* ── Derived lists (original logic) ──────────── */
+  
   const originals = articles.filter(a => a.original === true)
   const enhanced  = articles.filter(a => !a.original)
 
-  /* ───────────────────────────────────────────────
-     Loading & auth screens
-  ─────────────────────────────────────────────── */
+  
   if (authLoading) return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
@@ -417,16 +370,11 @@ function App() {
     </div>
   )
 
-  /* ───────────────────────────────────────────────
-     Main workspace render
-  ─────────────────────────────────────────────── */
+  
   return (
     <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-[#F8FAFC] flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
-
-      {/* ══ Top Navigation ══════════════════════════ */}
       <nav className="sticky top-0 z-20 h-[56px] bg-white/90 backdrop-blur-md border-b border-slate-200 px-5 flex items-center justify-between flex-shrink-0">
 
-        {/* Logo */}
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm shadow-indigo-300">
             <HiSparkles className="text-white text-sm" />
@@ -436,7 +384,6 @@ function App() {
           </span>
         </div>
 
-        {/* Mobile panel tabs */}
         <div className="md:hidden flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
           <button
             id="mobile-tab-input"
@@ -454,7 +401,6 @@ function App() {
           </button>
         </div>
 
-        {/* Right: status + user + logout */}
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse-dot" />
@@ -492,10 +438,8 @@ function App() {
         </div>
       </nav>
 
-      {/* ══ Split Workspace ═════════════════════════ */}
       <div className="flex flex-1 overflow-hidden min-h-0">
 
-        {/* ── Phase 5: Dashboard Overlay ──────────── */}
         {showDashboard && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -598,7 +542,6 @@ function App() {
           </div>
         )}
 
-        {/* ── LEFT PANEL ──────────────────────────── */}
         <aside
           className={`
             ${activePanel !== 'input' ? 'hidden md:flex' : 'flex'}
@@ -606,7 +549,7 @@ function App() {
             border-r border-slate-200 bg-white flex-shrink-0 overflow-y-auto
           `}
         >
-          {/* Left sticky header */}
+    
           <div className="sticky top-0 bg-white z-10 border-b border-slate-100 px-5 py-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.12em]">
@@ -624,7 +567,6 @@ function App() {
               )}
             </div>
 
-            {/* Stats chips - Persistent Dashboard Counts */}
             <div className="grid grid-cols-2 gap-3 mb-4">
               <button
                 onClick={() => handleStatusFilter('')}
@@ -677,10 +619,8 @@ function App() {
             </div>
           </div>
 
-          {/* Left scrollable body */}
           <div className="flex flex-col gap-6 p-5 flex-1">
 
-            {/* ── New Article CTA ────────────────── */}
             <button
               id="new-article-btn"
               onClick={openNewArticle}
@@ -695,7 +635,6 @@ function App() {
               </div>
             </button>
 
-            {/* ── Phase 5: Template Selection ──────── */}
             <div>
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.12em] mb-3">
                 Article Templates
@@ -719,7 +658,6 @@ function App() {
                 ))}
               </div>
 
-              {/* Personalization Options */}
               <div className="space-y-3">
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.12em] mb-2 block">
@@ -752,7 +690,6 @@ function App() {
               </div>
             </div>
 
-            {/* ── Pending Enhancement (history) ──── */}
             {originals.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -771,7 +708,7 @@ function App() {
                       style={{ animationDelay: `${idx * 50}ms` }}
                     >
                       <div className="flex gap-3 items-start">
-                        {/* Status indicator */}
+
                         <div className="mt-1.5 flex-shrink-0">
                           {article.status === 'processing' ? (
                             <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse" />
@@ -812,8 +749,7 @@ function App() {
                               Error: {article.failureReason}
                             </p>
                           )}
-                          {/* Actions */}
-                          <div className="flex items-center gap-3 mt-3">
+                                        <div className="flex items-center gap-3 mt-3">
                             <button
                               onClick={() => handleEdit(article)}
                               className="text-[11px] text-slate-400 hover:text-slate-600 font-semibold transition-colors"
@@ -865,7 +801,6 @@ function App() {
               </div>
             )}
 
-            {/* ── Empty workspace state ───────────── */}
             {articles.length === 0 && (
               <div className="flex-1 flex flex-col items-center justify-center text-center py-10">
                 <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-3">
@@ -880,14 +815,12 @@ function App() {
           </div>
         </aside>
 
-        {/* ── RIGHT PANEL ─────────────────────────── */}
         <section
           className={`
             ${activePanel !== 'output' ? 'hidden md:flex' : 'flex'}
             flex-1 flex-col overflow-y-auto bg-[#F8FAFC] p-5 lg:p-8 relative
           `}
         >
-          {/* Right panel header & Search */}
           <div className="flex flex-col gap-6 mb-8 flex-shrink-0">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
@@ -902,7 +835,6 @@ function App() {
                 </p>
               </div>
 
-              {/* Enhanced Search Bar */}
               <div className="relative group w-full lg:max-w-md">
                 <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
                   <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -929,7 +861,6 @@ function App() {
               </div>
             </div>
 
-            {/* Horizontal Filter Tabs */}
             <div className="flex items-center gap-2 p-1.5 bg-slate-100/50 border border-slate-200/60 rounded-2xl w-fit">
               <button
                 onClick={() => handleStatusFilter('')}
@@ -964,7 +895,6 @@ function App() {
             </div>
           </div>
 
-          {/* Main Article Feed */}
           {articles.length > 0 ? (
             <>
             <div className="flex flex-col gap-6 pb-10 w-full">
@@ -974,7 +904,6 @@ function App() {
                   className="group bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-300 overflow-hidden animate-slide-up"
                   style={{ animationDelay: `${idx * 70}ms` }}
                 >
-                  {/* Accent stripe - different color for original vs enhanced */}
                   <div className={`h-[4.5px] ${
                     article.original 
                       ? 'bg-gradient-to-r from-emerald-400 to-teal-500' 
@@ -982,7 +911,6 @@ function App() {
                   }`} />
 
                   <div className="p-8 md:p-10">
-                    {/* Badge Row */}
                     <div className="flex flex-wrap items-center gap-2 mb-6">
                       <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
                         article.original
@@ -1007,7 +935,6 @@ function App() {
                       </span>
                     </div>
 
-                    {/* Title (Only show if not showing enhanced content, as enhanced content usually contains the title already) */}
                     {(article.original || article.showOriginal || !article.enhancedContent) && (
                       <h1
                         className="text-2xl md:text-3xl font-extrabold text-slate-900 group-hover:text-indigo-700 mb-6 leading-tight outline-none transition-colors"
@@ -1016,9 +943,7 @@ function App() {
                       </h1>
                     )}
 
-                    {/* Content area */}
                     <div className="relative">
-                      {/* Comparison Toggle (Only for Enhanced) */}
                       {!article.original && (
                         <div className="flex items-center justify-end gap-2 mb-4">
                           <span className={`text-[10px] font-bold uppercase tracking-wider ${!article.showOriginal ? 'text-indigo-600' : 'text-slate-400'}`}>Enhanced AI</span>
@@ -1044,7 +969,6 @@ function App() {
                       />
                     </div>
 
-                    {/* AI Insights (Only for Enhanced) */}
                     {!article.original && article.analytics?.aiScores && (
                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
                          <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/50">
@@ -1062,7 +986,6 @@ function App() {
                        </div>
                     )}
 
-                    {/* Actions */}
                     <div className="flex flex-wrap items-center gap-3 pt-6 border-t border-slate-100">
                       <button
                         onClick={() => handleCopy(article)}
@@ -1139,7 +1062,7 @@ function App() {
             )}
             </>
           ) : (
-            /* ── Empty output state ──────────────── */
+            
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
               <div className="relative mb-6">
                 <div className="w-20 h-20 bg-gradient-to-br from-indigo-50 to-violet-100 rounded-[1.75rem] flex items-center justify-center shadow-sm">
@@ -1166,14 +1089,12 @@ function App() {
         </section>
       </div>
 
-      {/* ══ Modal ═══════════════════════════════════ */}
       {showModal && (
         <div
           className="fixed inset-0 bg-slate-900/50 backdrop-blur-[3px] flex items-center justify-center p-4 z-50 animate-fade-in"
           onClick={(e) => { if (e.target === e.currentTarget) { setEditId(null); setShowModal(false) } }}
         >
           <div className="bg-white w-full max-w-[560px] rounded-2xl shadow-2xl shadow-slate-900/20 border border-slate-100 overflow-hidden animate-scale-in">
-            {/* Modal gradient header */}
             <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-7 pt-6 pb-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -1197,7 +1118,6 @@ function App() {
               </div>
             </div>
 
-            {/* Modal form body */}
             <form onSubmit={handleCreate} className="p-7 space-y-5">
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-[0.12em] mb-2">

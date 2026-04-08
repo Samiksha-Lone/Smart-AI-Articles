@@ -186,7 +186,6 @@ const callOllama = async (prompt) => {
   return textResponse;
 };
 
-// Phase 3 AI Intelligence Functions
 const computeAIScores = (content, title) => {
   const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
   const words = content.split(/\s+/).filter(w => w.length > 0);
@@ -333,7 +332,6 @@ async function enhanceContent(originalContent, title, options = {}) {
       throw new Error('Original content and title are required');
     }
 
-    // Phase 4: Check cache first (include options in cache key)
     const cacheKey = cacheService.generateKey(originalContent, title, options);
     const cachedResult = cacheService.get(cacheKey);
     if (cachedResult) {
@@ -397,7 +395,6 @@ async function enhanceContent(originalContent, title, options = {}) {
       parsedResponse.analytics.readabilityScore = parseInt(parsedResponse.analytics.readabilityScore, 10) || 50;
     }
 
-    // Phase 3: Add AI Intelligence metrics
     const aiScores = computeAIScores(originalContent, title);
     const suggestions = generateSuggestions(originalContent, title);
     const keywordAnalysis = analyzeKeywords(originalContent, title);
@@ -406,7 +403,6 @@ async function enhanceContent(originalContent, title, options = {}) {
     parsedResponse.analytics.suggestions = suggestions;
     parsedResponse.analytics.keywordAnalysis = keywordAnalysis;
 
-    // Phase 4: Cache the result
     cacheService.set(cacheKey, parsedResponse);
 
     console.log('[AI Service] Successfully enhanced content with AI intelligence');

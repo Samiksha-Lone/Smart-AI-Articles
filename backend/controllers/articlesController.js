@@ -3,12 +3,30 @@ const { getArticleEnhancementQueue } = require('../queues/articleQueue');
 const { enhanceContent } = require('../services/aiService');
 const logger = require('../services/loggerService');
 
+/**
+ * Normalize optional URL values from client payloads.
+ * Empty strings are converted to undefined so they are not persisted.
+ * @param {string} url
+ * @returns {string|undefined}
+ */
 const sanitizeUrl = (url) => {
   if (typeof url !== 'string') return undefined;
   const trimmed = url.trim();
   return trimmed === '' ? undefined : trimmed;
 };
 
+/**
+ * GET /articles
+ * Fetch a paginated list of articles for the authenticated user.
+ * Supports search, status filtering, and original/enhanced filtering.
+ *
+ * Request query parameters:
+ * - page: page number
+ * - limit: number of articles per page
+ * - search: keyword filter for title/content
+ * - status: article processing status
+ * - original: boolean string to filter original vs enhanced content
+ */
 const getArticles = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -21,18 +39,19 @@ const getArticles = async (req, res) => {
 
     // Add search filter
     if (search) {
+      // Search both title and content fields with case-insensitive matching.
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
         { content: { $regex: search, $options: 'i' } }
       ];
     }
 
-    // Add status filter
+    // Apply status filter when provided.
     if (status) {
       query.status = status;
     }
 
-    // Add original filter
+    // Apply original/enhanced filter when provided.
     if (original !== undefined) {
       query.original = original === 'true';
     }
@@ -62,6 +81,10 @@ const getArticles = async (req, res) => {
   }
 };
 
+/**
+ * GET /articles/:id
+ * Fetch a single article belonging to the current user.
+ */
 const getArticleById = async (req, res) => {
   try {
     const article = await Article.findOne({ _id: req.params.id, user: req.userId });
@@ -72,6 +95,11 @@ const getArticleById = async (req, res) => {
   }
 };
 
+/**
+ * POST /articles
+ * Create a new article draft for the current user.
+ * The initial record is stored as pending and may be queued for enhancement.
+ */
 const createArticle = async (req, res) => {
   try {
     const articleData = {
@@ -117,6 +145,11 @@ const createArticle = async (req, res) => {
   }
 };
 
+/**
+ * PUT /articles/:id
+ * Update article metadata or draft text for the authenticated user.
+ * URL values are sanitized and blank URLs are removed.
+ */
 const updateArticle = async (req, res) => {
   try {
     const updates = {
@@ -141,6 +174,10 @@ const updateArticle = async (req, res) => {
   }
 };
 
+/**
+ * DELETE /articles/:id
+ * Remove an article owned by the current user.
+ */
 const deleteArticle = async (req, res) => {
   try {
     const article = await Article.findOneAndDelete({ _id: req.params.id, user: req.userId });
@@ -151,6 +188,11 @@ const deleteArticle = async (req, res) => {
   }
 };
 
+/**
+ * POST /articles/:id/enhance
+ * Queue an article enhancement job or process it directly when the queue is unavailable.
+ * Updates the article status to processing and stores any failure reason.
+ */
 const enhanceArticle = async (req, res) => {
   try {
     const article = await Article.findOne({ _id: req.params.id, user: req.userId });
@@ -165,12 +207,11 @@ const enhanceArticle = async (req, res) => {
       });
     }
 
-    // Mark as processing
+    // Mark as processing and clear previous failure information.
     article.status = 'processing';
     article.failureReason = undefined;
     await article.save();
 
-    // ── Try queue first (Redis path) ──────────────────────
     let queuedSuccessfully = false;
     try {
       const queue = getArticleEnhancementQueue();
@@ -193,7 +234,7 @@ const enhanceArticle = async (req, res) => {
       return res.json({ message: 'Enhancement queued', status: article.status, articleId: article._id });
     }
 
-    // ── Fallback: call AI service directly (no Redis needed) ──
+    // If queue submission fails, process enhancement synchronously.
     try {
       console.log(`[Articles Controller] Direct enhancement for article ${article._id}`);
       const enhancedData = await enhanceContent(article.content, article.title);
@@ -235,7 +276,11 @@ const enhanceArticle = async (req, res) => {
   }
 };
 
-// Phase 5: Analytics Dashboard
+/**
+ * GET /articles/analytics/dashboard
+ * Build a dashboard payload for the current user.
+ * Returns counts and average AI quality scores for completed articles.
+ */
 const getAnalytics = async (req, res) => {
   try {
     const userId = req.userId;
@@ -295,7 +340,11 @@ const getAnalytics = async (req, res) => {
   }
 };
 
-// Phase 5: Regenerate Article (creates new version)
+/**
+ * POST /articles/:id/regenerate
+ * Re-run AI enhancement for an existing article.
+ * Saves the previous version before updating the record.
+ */
 const regenerateArticle = async (req, res) => {
   try {
     const article = await Article.findOne({ _id: req.params.id, user: req.userId });
@@ -314,7 +363,6 @@ const regenerateArticle = async (req, res) => {
 
     article.versions.push(currentVersion);
 
-    // Reset for new enhancement
     article.status = 'processing';
     article.enhancedContent = undefined;
     article.analytics = undefined;
@@ -323,7 +371,6 @@ const regenerateArticle = async (req, res) => {
 
     await article.save();
 
-    // Queue the enhancement
     try {
       const queue = getArticleEnhancementQueue();
       await queue.add(
@@ -338,7 +385,6 @@ const regenerateArticle = async (req, res) => {
       );
       return res.json({ message: 'Regeneration queued', status: 'processing', articleId: article._id });
     } catch (queueError) {
-      // Fallback to direct enhancement
       try {
         const enhancedData = await enhanceContent(article.content, article.title);
 
@@ -364,7 +410,10 @@ const regenerateArticle = async (req, res) => {
   }
 };
 
-// Phase 5: Export Article
+/**
+ * GET /articles/:id/export
+ * Return the selected article content and metadata in a lightweight export format.
+ */
 const exportArticle = async (req, res) => {
   try {
     const article = await Article.findOne({ _id: req.params.id, user: req.userId });

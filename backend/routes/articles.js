@@ -41,16 +41,12 @@ router.put('/:id', updateArticle);
 
 router.delete('/:id', deleteArticle);
 
-// Apply rate limiting to enhancement (5 requests per minute)
 router.post('/:id/enhance', rateLimiter(5, 60000), enhanceArticle);
 
-// Phase 5: Analytics dashboard
 router.get('/analytics/dashboard', getAnalytics);
 
-// Phase 5: Regenerate article
 router.post('/:id/regenerate', rateLimiter(3, 60000), regenerateArticle);
 
-// Phase 5: Export article
 router.get('/:id/export', exportArticle);
 
 module.exports = router;

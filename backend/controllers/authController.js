@@ -1,10 +1,17 @@
+/**
+ * Authentication controller.
+ * Handles user registration and login with JWT issuance.
+ */
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { body, validationResult } = require('express-validator');
 
+/**
+ * Registration route pipeline.
+ * Validates input, hashes the password, stores the user, and returns a JWT.
+ */
 const register = [
-  // Validation
   body('name').isLength({ min: 2 }).trim().escape().withMessage('Name must be at least 2 characters'),
   body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
@@ -67,8 +74,11 @@ const register = [
   }
 ];
 
+/**
+ * Login route pipeline.
+ * Validates credentials and returns a JWT for authenticated sessions.
+ */
 const login = [
-  // Validation
   body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
   body('password').exists().withMessage('Password is required'),
 

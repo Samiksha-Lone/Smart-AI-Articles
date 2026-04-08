@@ -19,7 +19,6 @@ const articleSchema = new mongoose.Schema({
   enhancedAt: Date,
   failureReason: String,
 
-  // Phase 5: Templates and Personalization
   template: {
     type: String,
     enum: ['blog', 'linkedin', 'email', 'custom'],
@@ -36,7 +35,6 @@ const articleSchema = new mongoose.Schema({
     default: 'professional'
   },
 
-  // Phase 5: Versioning System
   versions: [{
     content: String,
     enhancedContent: String,
@@ -86,7 +84,6 @@ const articleSchema = new mongoose.Schema({
       organizations: [String],
       locations: [String]
     },
-    // Phase 3 AI Intelligence additions
     aiScores: {
       readability: { type: Number, min: 0, max: 100 },
       engagement: { type: Number, min: 0, max: 100 },

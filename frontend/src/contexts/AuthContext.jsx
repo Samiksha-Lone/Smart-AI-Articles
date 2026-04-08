@@ -3,7 +3,6 @@ import axios from 'axios';
 
 const AuthContext = createContext();
 
-// ── Set auth header immediately from persisted token ──────────────────────────
 // This runs synchronously at module load — before any useEffect — so the
 // Authorization header is present for the very first API call.
 const persistedToken = localStorage.getItem('token');
@@ -66,7 +65,6 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.post(`${API_BASE}/auth/login`, { email, password });
       const { token: newToken, user: userData } = response.data;
 
-      // ── Set header IMMEDIATELY before any state change triggers re-renders ──
       axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(userData));
@@ -87,7 +85,6 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.post(`${API_BASE}/auth/register`, { name, email, password });
       const { token: newToken, user: userData } = response.data;
 
-      // ── Set header IMMEDIATELY before any state change triggers re-renders ──
       axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(userData));

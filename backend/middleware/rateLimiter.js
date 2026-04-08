@@ -1,4 +1,3 @@
-// Simple in-memory rate limiter for student project
 const userRequests = new Map();
 
 const rateLimiter = (maxRequests = 5, windowMs = 60000) => {

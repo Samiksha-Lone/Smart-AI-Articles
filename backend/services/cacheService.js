@@ -1,9 +1,15 @@
-// Simple in-memory cache for student project
+/**
+ * Simple in-memory cache service used to store AI enhancement results.
+ * Caches results for a fixed TTL to avoid repeated expensive AI calls.
+ */
 const cache = new Map();
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 const cacheService = {
-  // Generate cache key from content, title, and personalization options
+  /**
+   * Generate a cache key from article content, title, and personalization settings.
+   * This ensures different prompt options are cached separately.
+   */
   generateKey: (content, title, options = {}) => {
     // Include personalization options in cache key
     const { writingStyle = 'formal', tone = 'professional', template = 'custom' } = options;
