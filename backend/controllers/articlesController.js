@@ -5,14 +5,14 @@ const logger = require('../services/loggerService');
 // Maps AIProviderError codes to HTTP status and a clean user message.
 const handleAIProviderError = (err, res) => {
   const statusMap = {
-    QUOTA_EXCEEDED: { status: 503, retry: true },
-    RATE_LIMITED:   { status: 429, retry: true },
-    INVALID_KEY:    { status: 503, retry: false },
-    UNAVAILABLE:    { status: 503, retry: true },
+    QUOTA_EXCEEDED: { status: 402, retry: false, title: 'Subscription Limit Reached' },
+    RATE_LIMITED:   { status: 429, retry: true, title: 'Service Overloaded' },
+    INVALID_KEY:    { status: 403, retry: false, title: 'Subscription Inactive' },
+    UNAVAILABLE:    { status: 503, retry: true, title: 'Service Unavailable' },
   };
-  const mapped = statusMap[err.code] || { status: 503, retry: false };
+  const mapped = statusMap[err.code] || { status: 503, retry: false, title: 'AI Service Error' };
   return res.status(mapped.status).json({
-    error: 'AI service error',
+    error: mapped.title,
     message: err.message,
     code: err.code,
     retryable: mapped.retry,
@@ -237,15 +237,21 @@ const enhanceArticle = async (req, res) => {
         template: article.template
       });
 
+      // Ensure data is properly typed (not stringified)
+      const enhancedTitle = String(enhancedData.enhancedTitle || article.title).trim();
+      const enhancedContent = String(enhancedData.enhancedContent || '').trim();
+      const summary = String(enhancedData.summary || '').trim() || enhancedContent.slice(0, 200);
+      const analytics = (typeof enhancedData.analytics === 'object') ? enhancedData.analytics : {};
+
       const enhanced = new Article({
-        title: enhancedData.enhancedTitle || article.title,
-        content: enhancedData.enhancedContent,
-        excerpt: enhancedData.summary || enhancedData.enhancedContent.slice(0, 200),
+        title: enhancedTitle,
+        content: enhancedContent,
+        excerpt: summary,
         url: article.url,
         user: article.user,
         original: false,
-        enhancedContent: enhancedData.enhancedContent,
-        analytics: enhancedData.analytics,
+        enhancedContent: enhancedContent,
+        analytics: analytics,
         status: 'completed',
         enhancedAt: new Date(),
       });

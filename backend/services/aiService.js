@@ -157,19 +157,19 @@ const classifyGeminiError = (err) => {
 
   if (msg.includes('quota') || msg.includes('resource_exhausted') || status === 429) {
     throw new AIProviderError(
-      'The AI service has reached its free usage limit for today. Please try again tomorrow, or contact the administrator.',
+      'Your AI subscription has reached its usage limit. Please upgrade your plan or contact support to continue using content enhancement.',
       'QUOTA_EXCEEDED'
     );
   }
   if (msg.includes('api_key') || msg.includes('invalid') || msg.includes('api key') || status === 400 || status === 403) {
     throw new AIProviderError(
-      'The AI service is misconfigured. Please contact the administrator.',
+      'AI service subscription is not active or has expired. Please verify your subscription status or contact support.',
       'INVALID_KEY'
     );
   }
   if (msg.includes('rate') || msg.includes('too many requests')) {
     throw new AIProviderError(
-      'The AI service is receiving too many requests. Please wait a moment and try again.',
+      'The AI service is currently overloaded. Please wait a moment and try again.',
       'RATE_LIMITED'
     );
   }
@@ -380,8 +380,9 @@ async function enhanceContent(originalContent, title, options = {}) {
 
     const prompt = buildPrompt(originalContent, title, options);
     let textResponse;
+    const isProduction = process.env.NODE_ENV === 'production';
 
-    // 1. Try Gemini (Production)
+    // 1. Try Gemini (Primary service)
     if (GEMINI_API_KEY && GEMINI_API_KEY !== 'your_gemini_api_key_here') {
       console.log('[AI Service] Calling Google Gemini...');
       try {
@@ -389,42 +390,61 @@ async function enhanceContent(originalContent, title, options = {}) {
       } catch (err) {
         if (err instanceof AIProviderError) {
           if (err.code === 'QUOTA_EXCEEDED' || err.code === 'INVALID_KEY') {
-            // Permanent errors — stop here, no fallback
+            // Permanent errors — stop here, no fallback on production
             console.error(`[AI Service] Gemini permanent error (${err.code}): ${err.message}`);
             throw err;
           }
-          // RATE_LIMITED or UNAVAILABLE — fall back to Ollama silently
+          // RATE_LIMITED or UNAVAILABLE — fall back only on non-production
+          if (isProduction) {
+            console.error(`[AI Service] Gemini temporarily unavailable (${err.code}). No fallback on production.`);
+            throw err;
+          }
           console.warn(`[AI Service] Gemini temporarily unavailable (${err.code}). Falling back to Ollama...`);
         } else {
-          // Unknown / network error — fall back to Ollama
+          // Unknown / network error — fall back only on non-production
+          if (isProduction) {
+            console.error(`[AI Service] Gemini failed: ${err.message}. No fallback on production.`);
+            throw err;
+          }
           console.warn(`[AI Service] Gemini failed: ${err.message}. Falling back to Ollama...`);
         }
       }
     }
 
-    // 2. Try Ollama (Local fallback — only reached if Gemini had a network/unknown error)
-    if (!textResponse) {
+    // 2. Try Ollama (Local fallback only — NOT on production)
+    if (!textResponse && !isProduction) {
       console.log(`[AI Service] Calling Ollama at ${OLLAMA_BASE_URL} using model: ${OLLAMA_MODEL}`);
       try {
         textResponse = await callOllama(prompt);
       } catch (err) {
-        console.warn(`[AI Service] Ollama failed: ${err.message}. Using simulated AI fallback...`);
+        console.warn(`[AI Service] Ollama failed: ${err.message}. Using simulated AI fallback (LOCAL ONLY)...`);
         
         let cleanContent = originalContent;
         if (cleanContent.includes('--- AI ENHANCEMENT OPTIMIZATION ---')) {
           cleanContent = cleanContent.split('--- AI ENHANCEMENT OPTIMIZATION ---')[0].trim();
         }
 
-        textResponse = JSON.stringify({
-          enhancedContent: `${cleanContent}\n\n\n--- AI ENHANCEMENT OPTIMIZATION ---\n\n• Tone has been artificially adjusted to be more ${options.tone || 'professional'}.\n• Writing style is currently set to ${options.writingStyle || 'formal'}.\n• Readability analysis and SEO keyword extraction completed successfully.`,
-          analytics: {
-            sentiment: "Positive",
-            tone: "Professional",
-            readabilityScore: 88,
-            keywords: ["ai", "enhancement", "optimization", "content", "strategy"]
-          }
-        });
+        textResponse = `Title: ${title}
+
+Content:
+${cleanContent}
+
+Summary:
+AI-enhanced content with style adjustments and optimization.
+
+Keywords:
+- ai
+- enhancement
+- optimization
+- content
+- strategy`;
       }
+    } else if (!textResponse && isProduction) {
+      // On production, if no response from Gemini, fail explicitly
+      throw new AIProviderError(
+        'AI enhancement service is currently unavailable. Please try again later.',
+        'UNAVAILABLE'
+      );
     }
 
     console.log(`[AI Service] Response obtained. Parsing...`);

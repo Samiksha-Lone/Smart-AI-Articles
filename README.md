@@ -22,24 +22,26 @@ Smart AI Articles solves these challenges by providing an AI-enhanced editor wit
 
 ## Key Features
 
-- 🔐 **Secure Authentication** — JWT-based user registration and login with encrypted passwords.
-- ✍️ **AI-Powered Editor** — Dynamic content enhancement, rewriting, and style adjustment using Google Gemini.
-- 📋 **Template Library** — Specialized templates for Blog posts, LinkedIn updates, Professional Emails, and Custom formats.
-- 📊 **Content Analytics** — Deep insights into readability, engagement levels, and SEO optimization.
-- 📂 **Version Control** — Track content history with the ability to regenerate and compare versions.
-- 📤 **Export Options** — One-click export of articles to JSON or TXT formats for easy publishing.
-- 📱 **Modern Responsive UI** — A premium, high-performance interface built with React 19 and Tailwind CSS 4.
+- 🔐 **Secure Authentication** — JWT-based user registration and login with bcrypt-encrypted passwords and session management.
+- ✍️ **AI-Powered Enhancement** — Intelligent content enhancement using Google Gemini with customizable writing styles and tones.
+- 📋 **Content Templates** — Pre-built templates for Blog posts, LinkedIn updates, Professional Emails, and Custom formats to accelerate content creation.
+- 📊 **Real-Time Analytics Dashboard** — Comprehensive insights including readability scores, engagement metrics, and SEO optimization analysis for each article.
+- 🔄 **Version Control & Comparison** — Toggle between original and enhanced content, regenerate versions, and track all modifications with timestamps.
+- 🔍 **Advanced Search & Filtering** — Search articles by title/content, filter by status, with pagination support.
+- 📝 **Original vs Enhanced Toggle** — Side-by-side comparison of AI-enhanced content with original drafts, with one-click copy to clipboard.
+- 📱 **Modern Responsive UI** — Premium, high-performance interface built with React 19 and Tailwind CSS 4, optimized for desktop and mobile devices.
+- ⚡ **Background Processing** — Asynchronous AI enhancement with real-time status tracking and auto-refresh when processing completes.
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | React 19, Vite, Tailwind CSS 4, React Icons |
-| **Backend** | Node.js, Express.js |
-| **Database** | MongoDB Atlas (Mongoose) |
-| **AI Models** | Google Gemini (production), Ollama (local dev) |
-| **Auth & Security** | JWT, bcrypt, Helmet.js, express-rate-limit |
-| **Deployment** | Vercel (frontend) |
+| **Frontend** | React 19, Vite, Tailwind CSS 4, Axios, React Icons |
+| **Backend** | Node.js, Express.js, Mongoose |
+| **Database** | MongoDB Atlas with full CRUD operations |
+| **AI Models** | Google Generative AI (Gemini), Ollama (local fallback) |
+| **Security** | JWT tokens, bcrypt password hashing, Helmet.js, rate-limiting |
+| **Deployment** | Vercel (frontend), Render/Heroku ready (backend) |
 
 ## Architecture / Flow
 
@@ -53,10 +55,12 @@ User → React Frontend → Axios → Express API → MongoDB
 
 **I independently designed and built this entire project from scratch**, including:
 
-- 🖥️ **Frontend** — Developing the responsive UI, state management, and real-time analytics dashboard.
-- ⚙️ **Backend** — Architecting the RESTful API, implementing secure authentication, and managing MongoDB schemas.
-- 🤖 **AI Integration** — Designing a multi-provider AI system (Gemini + Ollama) with automatic fallback and structured error handling.
-- 🚀 **Deployment** — Configuring environment variables and managing the production deployment on Vercel.
+- 🖥️ **Frontend** — Responsive React UI with state management, real-time analytics dashboard, dynamic content rendering with proper HTML formatting, and mobile optimization.
+- ⚙️ **Backend** — RESTful API with secure authentication, MongoDB integration, pagination, search/filter functionality, and comprehensive error handling.
+- 🤖 **AI Integration** — Gemini-powered content enhancement with automatic HTML/markdown conversion, fallback error handling, and structured response parsing.
+- 📊 **Analytics** — Dashboard metrics for total articles, originals, processing status, enhanced articles, and average AI quality scores.
+- 🔐 **Security** — JWT-based session management, password encryption, rate limiting, and input validation.
+- 🚀 **Deployment** — Production-ready environment configuration with Vercel frontend hosting support.
 
 ## Setup
 

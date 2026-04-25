@@ -66,6 +66,48 @@ const CheckIcon = () => (
   </svg>
 )
 
+// Format plain text content to HTML with proper structure
+const formatContentToHTML = (content) => {
+  if (!content) return ''
+  
+  // Check if content is already HTML
+  if (/<[a-z][\s\S]*>/i.test(content)) {
+    // It's already HTML, return as-is
+    return content
+  }
+  
+  // Handle escaped newlines (\n) by converting to actual newlines
+  let processedContent = content.replace(/\\n/g, '\n').replace(/\\t/g, '\t')
+  
+  // Split by double newlines for paragraphs
+  const paragraphs = processedContent.trim().split(/\n\n+/)
+  
+  return paragraphs.map(para => {
+    const trimmed = para.trim()
+    if (!trimmed) return ''
+    
+    // Check if it's a heading (markdown-style or all caps)
+    if (trimmed.match(/^#{1,6}\s/)) {
+      const level = trimmed.match(/^#+/)[0].length
+      const text = trimmed.replace(/^#+\s/, '')
+      return `<h${level} class="text-${level === 1 ? '2xl' : level === 2 ? 'xl' : 'lg'} font-bold text-slate-900 mt-6 mb-4 leading-tight">${text}</h${level}>`
+    }
+    
+    // Check if it's a bullet point list
+    if (trimmed.match(/^\s*[-•*]\s/m)) {
+      const items = trimmed.split(/\n/).filter(line => line.trim())
+      const listHTML = items.map(item => {
+        const text = item.replace(/^\s*[-•*]\s+/, '').trim()
+        return `<li class="mb-3">${text}</li>`
+      }).join('')
+      return `<ul class="list-disc ml-5 mb-4">${listHTML}</ul>`
+    }
+    
+    // Regular paragraph
+    return `<p class="mb-4">${trimmed}</p>`
+  }).join('')
+}
+
 
 function App() {
   const { user, logout, loading: authLoading } = useAuth()
@@ -123,6 +165,19 @@ function App() {
         }
       })
   }
+
+  useEffect(() => {
+    // Set page title based on authentication state
+    if (authLoading) {
+      document.title = 'Smart Article AI - Loading...'
+    } else if (!user) {
+      document.title = authMode === 'login' 
+        ? 'Sign In - Smart Article AI' 
+        : 'Sign Up - Smart Article AI'
+    } else {
+      document.title = 'Smart Article AI - Content Creation Dashboard'
+    }
+  }, [user, authLoading, authMode])
 
   useEffect(() => { if (user) fetchArticles() }, [user])
 
@@ -961,10 +1016,12 @@ function App() {
 
                       <div 
                         className={`prose-container text-[16px] leading-relaxed mb-8 max-h-[500px] overflow-y-auto pr-6 custom-scrollbar transition-all duration-300 ${
-                          article.original || article.showOriginal ? 'text-slate-500 italic font-medium' : 'text-slate-700 font-normal'
+                          article.original || article.showOriginal ? 'text-slate-600 opacity-90' : 'text-slate-700 font-normal'
                         }`}
                         dangerouslySetInnerHTML={{ 
-                          __html: (article.original || article.showOriginal) ? article.content : (article.enhancedContent || article.content) 
+                          __html: formatContentToHTML(
+                            (article.original || article.showOriginal) ? article.content : (article.enhancedContent || article.content)
+                          )
                         }}
                       />
                     </div>
