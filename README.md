@@ -26,11 +26,11 @@ Smart AI Articles solves these challenges by providing an AI-enhanced editor wit
 - ✍️ **AI-Powered Enhancement** — Intelligent content enhancement using Google Gemini with customizable writing styles and tones.
 - 📋 **Content Templates** — Pre-built templates for Blog posts, LinkedIn updates, Professional Emails, and Custom formats to accelerate content creation.
 - 📊 **Real-Time Analytics Dashboard** — Comprehensive insights including readability scores, engagement metrics, and SEO optimization analysis for each article.
-- 🔄 **Version Control & Comparison** — Toggle between original and enhanced content, regenerate versions, and track all modifications with timestamps.
-- 🔍 **Advanced Search & Filtering** — Search articles by title/content, filter by status, with pagination support.
+- 🔄 **Regenerate Articles** — Re-run AI enhancement on existing articles to create improved versions with automatic version history tracking.
+- 🔍 **Advanced Search & Filtering** — Search articles by title/content, filter by status (original/enhanced/processing), with pagination support.
 - 📝 **Original vs Enhanced Toggle** — Side-by-side comparison of AI-enhanced content with original drafts, with one-click copy to clipboard.
 - 📱 **Modern Responsive UI** — Premium, high-performance interface built with React 19 and Tailwind CSS 4, optimized for desktop and mobile devices.
-- ⚡ **Background Processing** — Asynchronous AI enhancement with real-time status tracking and auto-refresh when processing completes.
+- ⚡ **Real-Time Processing Status** — Live status tracking for AI enhancement tasks with automatic UI refresh when processing completes.
 
 ## Tech Stack
 
@@ -39,28 +39,28 @@ Smart AI Articles solves these challenges by providing an AI-enhanced editor wit
 | **Frontend** | React 19, Vite, Tailwind CSS 4, Axios, React Icons |
 | **Backend** | Node.js, Express.js, Mongoose |
 | **Database** | MongoDB Atlas with full CRUD operations |
-| **AI Models** | Google Generative AI (Gemini), Ollama (local fallback) |
+| **AI Model** | Google Generative AI (Gemini) |
 | **Security** | JWT tokens, bcrypt password hashing, Helmet.js, rate-limiting |
-| **Deployment** | Vercel (frontend), Render/Heroku ready (backend) |
+| **Deployment** | Vercel (frontend), Render ready (backend) |
 
 ## Architecture / Flow
 
 ```text
 User → React Frontend → Axios → Express API → MongoDB
                                       ↓
-                           Google Gemini / Ollama
+                           Google Gemini
 ```
 
 ## My Contribution
 
 **I independently designed and built this entire project from scratch**, including:
 
-- 🖥️ **Frontend** — Responsive React UI with state management, real-time analytics dashboard, dynamic content rendering with proper HTML formatting, and mobile optimization.
-- ⚙️ **Backend** — RESTful API with secure authentication, MongoDB integration, pagination, search/filter functionality, and comprehensive error handling.
-- 🤖 **AI Integration** — Gemini-powered content enhancement with automatic HTML/markdown conversion, fallback error handling, and structured response parsing.
+- 🖥️ **Frontend** — Responsive React UI with state management, real-time analytics dashboard, dynamic content rendering with proper HTML formatting, article filtering/search, template system, and mobile optimization.
+- ⚙️ **Backend** — RESTful API with secure authentication, MongoDB integration, pagination, search/filter functionality, article regeneration, and comprehensive error handling.
+- 🤖 **AI Integration** — Gemini-powered content enhancement with automatic HTML/markdown conversion, fallback error handling, and structured response parsing with intelligent caching.
 - 📊 **Analytics** — Dashboard metrics for total articles, originals, processing status, enhanced articles, and average AI quality scores.
-- 🔐 **Security** — JWT-based session management, password encryption, rate limiting, and input validation.
-- 🚀 **Deployment** — Production-ready environment configuration with Vercel frontend hosting support.
+- 🔐 **Security** — JWT-based session management, password encryption, rate limiting on AI endpoints, and input validation.
+- 🚀 **Deployment** — Production-ready environment configuration with Vercel frontend hosting.
 
 ## Setup
 
@@ -115,10 +115,11 @@ npm run dev   # http://localhost:5173
 
 ## Future Improvements
 
-- [ ] Collaborative editing features for real-time team content creation.
+- [ ] Direct article export to Markdown/PDF formats.
 - [ ] Integration with Medium and LinkedIn APIs for direct one-click publishing.
 - [ ] Advanced SEO recommendation engine with competitor keyword analysis.
 - [ ] Multi-language support for content translation and localization.
+- [ ] Collaborative editing features for team content creation.
 
 ## License
 
