@@ -107,13 +107,6 @@ mongoose.connection.once('open', () => {
 app.use('/api/auth', authRoutes);
 app.use('/api/articles', articleRoutes);
 
-app.post('/api/scrape', async (req, res) => {
-  try {
-    res.json({ message: 'Scraping disabled!' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 app.use((req, res) => {
   res.status(404).json({

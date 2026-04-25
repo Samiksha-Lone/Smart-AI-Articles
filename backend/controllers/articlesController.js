@@ -1,7 +1,23 @@
 const Article = require('../models/Article');
-const { getArticleEnhancementQueue } = require('../queues/articleQueue');
 const { enhanceContent } = require('../services/aiService');
 const logger = require('../services/loggerService');
+
+// Maps AIProviderError codes to HTTP status and a clean user message.
+const handleAIProviderError = (err, res) => {
+  const statusMap = {
+    QUOTA_EXCEEDED: { status: 503, retry: true },
+    RATE_LIMITED:   { status: 429, retry: true },
+    INVALID_KEY:    { status: 503, retry: false },
+    UNAVAILABLE:    { status: 503, retry: true },
+  };
+  const mapped = statusMap[err.code] || { status: 503, retry: false };
+  return res.status(mapped.status).json({
+    error: 'AI service error',
+    message: err.message,
+    code: err.code,
+    retryable: mapped.retry,
+  });
+};
 
 /**
  * Normalize optional URL values from client payloads.
@@ -190,8 +206,10 @@ const deleteArticle = async (req, res) => {
 
 /**
  * POST /articles/:id/enhance
- * Queue an article enhancement job or process it directly when the queue is unavailable.
- * Updates the article status to processing and stores any failure reason.
+/**
+ * POST /articles/:id/enhance
+ * Enhance an article synchronously with AI.
+ * Updates the article status to processing, runs AI, then saves the result.
  */
 const enhanceArticle = async (req, res) => {
   try {
@@ -207,39 +225,18 @@ const enhanceArticle = async (req, res) => {
       });
     }
 
-    // Mark as processing and clear previous failure information.
     article.status = 'processing';
     article.failureReason = undefined;
     await article.save();
 
-    let queuedSuccessfully = false;
     try {
-      const queue = getArticleEnhancementQueue();
-      await queue.add(
-        `enhance-article-${article._id}`,
-        { articleId: article._id.toString() },
-        {
-          jobId: `article-${article._id}`,
-          removeOnComplete: true,
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 30000 },
-        }
-      );
-      queuedSuccessfully = true;
-    } catch (queueError) {
-      console.warn('[Articles Controller] Queue unavailable, falling back to direct enhancement:', queueError.message);
-    }
+      console.log(`[Articles Controller] Enhancing article ${article._id} with AI...`);
+      const enhancedData = await enhanceContent(article.content, article.title, {
+        writingStyle: article.writingStyle,
+        tone: article.tone,
+        template: article.template
+      });
 
-    if (queuedSuccessfully) {
-      return res.json({ message: 'Enhancement queued', status: article.status, articleId: article._id });
-    }
-
-    // If queue submission fails, process enhancement synchronously.
-    try {
-      console.log(`[Articles Controller] Direct enhancement for article ${article._id}`);
-      const enhancedData = await enhanceContent(article.content, article.title);
-
-      // Create a new enhanced article document (mirrors worker behaviour)
       const enhanced = new Article({
         title: enhancedData.enhancedTitle || article.title,
         content: enhancedData.enhancedContent,
@@ -254,7 +251,6 @@ const enhanceArticle = async (req, res) => {
       });
       await enhanced.save();
 
-      // Mark original as completed
       article.status = 'completed';
       await article.save();
 
@@ -263,13 +259,16 @@ const enhanceArticle = async (req, res) => {
       article.status = 'failed';
       article.failureReason = aiError.message;
       await article.save();
-      console.error('[Articles Controller] Direct enhancement failed:', aiError.message);
+      console.error('[Articles Controller] Enhancement failed:', aiError.message);
+
+      if (aiError.name === 'AIProviderError') {
+        return handleAIProviderError(aiError, res);
+      }
       return res.status(503).json({
-        message: 'AI enhancement failed',
+        message: 'AI enhancement failed. Please try again later.',
         error: aiError.message
       });
     }
-
   } catch (error) {
     console.error('[Articles Controller] Enhancement error:', error);
     res.status(500).json({ message: 'Error enhancing article', error: error.message });
@@ -342,7 +341,7 @@ const getAnalytics = async (req, res) => {
 
 /**
  * POST /articles/:id/regenerate
- * Re-run AI enhancement for an existing article.
+ * Re-run AI enhancement synchronously for an existing article.
  * Saves the previous version before updating the record.
  */
 const regenerateArticle = async (req, res) => {
@@ -360,7 +359,6 @@ const regenerateArticle = async (req, res) => {
       version: article.versions.length + 1,
       createdAt: new Date()
     };
-
     article.versions.push(currentVersion);
 
     article.status = 'processing';
@@ -368,41 +366,35 @@ const regenerateArticle = async (req, res) => {
     article.analytics = undefined;
     article.enhancedAt = undefined;
     article.failureReason = undefined;
-
     await article.save();
 
     try {
-      const queue = getArticleEnhancementQueue();
-      await queue.add(
-        `regenerate-article-${article._id}`,
-        { articleId: article._id.toString(), isRegeneration: true },
-        {
-          jobId: `regenerate-${article._id}`,
-          removeOnComplete: true,
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 30000 },
-        }
-      );
-      return res.json({ message: 'Regeneration queued', status: 'processing', articleId: article._id });
-    } catch (queueError) {
-      try {
-        const enhancedData = await enhanceContent(article.content, article.title);
+      console.log(`[Articles Controller] Regenerating article ${article._id} with AI...`);
+      const enhancedData = await enhanceContent(article.content, article.title, {
+        writingStyle: article.writingStyle,
+        tone: article.tone,
+        template: article.template
+      });
 
-        article.title = enhancedData.enhancedTitle || article.title;
-        article.enhancedContent = enhancedData.enhancedContent;
-        article.content = enhancedData.enhancedContent;
-        article.excerpt = enhancedData.summary || enhancedData.enhancedContent.slice(0, 200);
-        article.analytics = enhancedData.analytics;
-        article.status = 'completed';
-        article.enhancedAt = new Date();
-        await article.save();
-        return res.json({ message: 'Regeneration completed', status: 'completed', articleId: article._id });
-      } catch (aiError) {
-        article.status = 'failed';
-        article.failureReason = aiError.message;
-        await article.save();
-        return res.status(503).json({ error: 'Regeneration failed', message: aiError.message });
+      article.title = enhancedData.enhancedTitle || article.title;
+      article.enhancedContent = enhancedData.enhancedContent;
+      article.content = enhancedData.enhancedContent;
+      article.excerpt = enhancedData.summary || enhancedData.enhancedContent.slice(0, 200);
+      article.analytics = enhancedData.analytics;
+      article.status = 'completed';
+      article.enhancedAt = new Date();
+      await article.save();
+
+      return res.json({ message: 'Regeneration completed', status: 'completed', articleId: article._id });
+    } catch (aiError) {
+      article.status = 'failed';
+      article.failureReason = aiError.message;
+      await article.save();
+
+      if (aiError.name === 'AIProviderError') {
+        return handleAIProviderError(aiError, res);
       }
+      return res.status(503).json({ error: 'Regeneration failed. Please try again later.', message: aiError.message });
     }
   } catch (error) {
     console.error('Error regenerating article:', error);

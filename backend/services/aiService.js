@@ -1,10 +1,9 @@
 const axios = require('axios');
-const { OpenAI } = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const cacheService = require('./cacheService');
 require('dotenv').config();
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'mistral';
 
@@ -143,25 +142,65 @@ const parseResponseText = (text) => {
   });
 };
 
-const callOpenAI = async (prompt) => {
-  if (!OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY is not configured. Set it in your environment variables.');
+// Custom error class for AI provider failures with a user-facing message.
+class AIProviderError extends Error {
+  constructor(message, code) {
+    super(message);
+    this.name = 'AIProviderError';
+    this.code = code; // 'QUOTA_EXCEEDED' | 'INVALID_KEY' | 'RATE_LIMITED' | 'UNAVAILABLE'
+  }
+}
+
+const classifyGeminiError = (err) => {
+  const msg = (err.message || '').toLowerCase();
+  const status = err.status || err.statusCode || (err.errorDetails && err.errorDetails[0]?.reason);
+
+  if (msg.includes('quota') || msg.includes('resource_exhausted') || status === 429) {
+    throw new AIProviderError(
+      'The AI service has reached its free usage limit for today. Please try again tomorrow, or contact the administrator.',
+      'QUOTA_EXCEEDED'
+    );
+  }
+  if (msg.includes('api_key') || msg.includes('invalid') || msg.includes('api key') || status === 400 || status === 403) {
+    throw new AIProviderError(
+      'The AI service is misconfigured. Please contact the administrator.',
+      'INVALID_KEY'
+    );
+  }
+  if (msg.includes('rate') || msg.includes('too many requests')) {
+    throw new AIProviderError(
+      'The AI service is receiving too many requests. Please wait a moment and try again.',
+      'RATE_LIMITED'
+    );
+  }
+  // Generic Gemini failure — rethrow so Ollama fallback can be tried
+  throw new Error(err.message || 'Gemini request failed');
+};
+
+const callGemini = async (prompt) => {
+  if (!GEMINI_API_KEY) {
+    throw new AIProviderError(
+      'The AI service is not configured. Please contact the administrator.',
+      'INVALID_KEY'
+    );
   }
 
-  const client = new OpenAI({ apiKey: OPENAI_API_KEY });
-  const response = await client.chat.completions.create({
-    model: OPENAI_MODEL,
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 1200,
-    temperature: 0.7,
-  });
+  try {
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const textResponse = response.text();
 
-  const textResponse = response.choices[0]?.message?.content;
-  if (!textResponse) {
-    throw new Error('No response received from OpenAI');
+    if (!textResponse) {
+      throw new Error('No response received from Gemini');
+    }
+
+    return textResponse;
+  } catch (err) {
+    if (err instanceof AIProviderError) throw err; // already classified
+    classifyGeminiError(err); // classify and rethrow
   }
-
-  return textResponse;
 };
 
 const callOllama = async (prompt) => {
@@ -342,16 +381,28 @@ async function enhanceContent(originalContent, title, options = {}) {
     const prompt = buildPrompt(originalContent, title, options);
     let textResponse;
 
-    if (OPENAI_API_KEY && OPENAI_API_KEY !== 'your_openai_api_key_here') {
-      console.log(`[AI Service] Calling OpenAI model ${OPENAI_MODEL}`);
+    // 1. Try Gemini (Production)
+    if (GEMINI_API_KEY && GEMINI_API_KEY !== 'your_gemini_api_key_here') {
+      console.log('[AI Service] Calling Google Gemini...');
       try {
-        textResponse = await callOpenAI(prompt);
+        textResponse = await callGemini(prompt);
       } catch (err) {
-        console.warn(`[AI Service] OpenAI failed: ${err.message}. Trying local mock...`);
-        textResponse = null;
+        if (err instanceof AIProviderError) {
+          if (err.code === 'QUOTA_EXCEEDED' || err.code === 'INVALID_KEY') {
+            // Permanent errors — stop here, no fallback
+            console.error(`[AI Service] Gemini permanent error (${err.code}): ${err.message}`);
+            throw err;
+          }
+          // RATE_LIMITED or UNAVAILABLE — fall back to Ollama silently
+          console.warn(`[AI Service] Gemini temporarily unavailable (${err.code}). Falling back to Ollama...`);
+        } else {
+          // Unknown / network error — fall back to Ollama
+          console.warn(`[AI Service] Gemini failed: ${err.message}. Falling back to Ollama...`);
+        }
       }
-    } 
-    
+    }
+
+    // 2. Try Ollama (Local fallback — only reached if Gemini had a network/unknown error)
     if (!textResponse) {
       console.log(`[AI Service] Calling Ollama at ${OLLAMA_BASE_URL} using model: ${OLLAMA_MODEL}`);
       try {

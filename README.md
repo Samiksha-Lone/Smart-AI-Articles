@@ -1,128 +1,125 @@
-Original implementation by Samiksha Lone
+# Smart AI Articles — AI-Powered Content Creation Platform
 
-# Smart AI Articles
-
-AI-powered content editing and publishing platform for faster article creation and improved quality.
+> A full-stack MERN application designed to streamline article creation, editing, and optimization through advanced AI models.
 
 ## 🔗 Links
-
-- **Live Demo**: [Coming Soon]
+- **Live Demo**: [https://beyondchats-frontend-beta.vercel.app/](https://beyondchats-frontend-beta.vercel.app/)
 - **GitHub Repository**: [https://github.com/Samiksha-Lone/Smart-AI-Articles](https://github.com/Samiksha-Lone/Smart-AI-Articles)
+
+## Overview
+
+Smart AI Articles is a centralized platform for content creators and writers. It leverages the power of Large Language Models (LLMs) to help users generate, refine, and analyze content across various formats like blogs, social media, and professional emails.
 
 ## Problem Statement
 
-Content creators need a faster way to edit, rewrite, and optimize articles while keeping tone consistent and managing versions.
+- **Content Bottlenecks**: Writers often struggle with "writer's block" or spend excessive time on initial drafts.
+- **Inconsistent Quality**: Maintaining a consistent tone and optimizing for SEO/readability across multiple pieces is challenging.
+- **Synchronous Delays**: Generating high-quality AI content can be slow, blocking the user interface during processing.
 
-## Problem–Solution Mapping
+## Solution
 
-Smart AI Articles uses AI-powered enhancement, templates, analytics, and background processing to improve content quality, maintain style, and scale article creation.
+Smart AI Articles solves these challenges by providing an AI-enhanced editor with pre-built templates and real-time analytics. It uses Google Gemini to intelligently enhance content and provide actionable quality insights.
 
-## System Architecture
+## Key Features
 
-- Frontend: React, Vite, Tailwind CSS
-- Backend: Node.js, Express
-- Database: MongoDB with Mongoose
-- Auth: JWT and bcrypt
-- Queue: Redis + BullMQ
-- AI: OpenAI with Ollama fallback
-
-## Features
-
-- User authentication and article CRUD
-- AI-enhanced content editing
-- Blog, LinkedIn, email, and custom templates
-- Version history with regeneration
-- Readability, engagement, and SEO analytics
-- Export as JSON or TXT
-- Background queue processing with status tracking
-- Search, filtering, and caching
+- 🔐 **Secure Authentication** — JWT-based user registration and login with encrypted passwords.
+- ✍️ **AI-Powered Editor** — Dynamic content enhancement, rewriting, and style adjustment using Google Gemini.
+- 📋 **Template Library** — Specialized templates for Blog posts, LinkedIn updates, Professional Emails, and Custom formats.
+- 📊 **Content Analytics** — Deep insights into readability, engagement levels, and SEO optimization.
+- 📂 **Version Control** — Track content history with the ability to regenerate and compare versions.
+- 📤 **Export Options** — One-click export of articles to JSON or TXT formats for easy publishing.
+- 📱 **Modern Responsive UI** — A premium, high-performance interface built with React 19 and Tailwind CSS 4.
 
 ## Tech Stack
 
-- React 19, Vite, Tailwind CSS, Axios
-- Node.js, Express, MongoDB, Mongoose
-- Redis, BullMQ
-- OpenAI, Ollama
-- bcrypt, JSON Web Tokens
+| Layer | Technology |
+|---|---|
+| **Frontend** | React 19, Vite, Tailwind CSS 4, React Icons |
+| **Backend** | Node.js, Express.js |
+| **Database** | MongoDB Atlas (Mongoose) |
+| **AI Models** | Google Gemini (production), Ollama (local dev) |
+| **Auth & Security** | JWT, bcrypt, Helmet.js, express-rate-limit |
+| **Deployment** | Vercel (frontend) |
 
-## Installation / Setup
+## Architecture / Flow
 
-1. Clone repository
-   ```bash
-   git clone https://github.com/Samiksha-Lone/Smart-AI-Articles.git
-   cd Smart-AI-Articles
-   ```
-2. Install dependencies
-   ```bash
-   cd backend
-   npm install
-   cd ../frontend
-   npm install
-   ```
-3. Configure environment
-   - Copy `backend/.env.example` to `backend/.env`
-   - Add MongoDB URI, JWT secret, OpenAI key, and Redis settings
-4. Start Redis
-   ```bash
-   redis-server
-   ```
-5. Run services
-   ```bash
-   # Backend
-   cd backend
-   npm run dev
+```text
+User → React Frontend → Axios → Express API → MongoDB
+                                      ↓
+                           Google Gemini / Ollama
+```
 
-   # Worker
-   npm run worker
+## My Contribution
 
-   # Frontend
-   cd ../frontend
-   npm run dev
-   ```
+**I independently designed and built this entire project from scratch**, including:
+
+- 🖥️ **Frontend** — Developing the responsive UI, state management, and real-time analytics dashboard.
+- ⚙️ **Backend** — Architecting the RESTful API, implementing secure authentication, and managing MongoDB schemas.
+- 🤖 **AI Integration** — Designing a multi-provider AI system (Gemini + Ollama) with automatic fallback and structured error handling.
+- 🚀 **Deployment** — Configuring environment variables and managing the production deployment on Vercel.
+
+## Setup
+
+### Prerequisites
+Node.js 18+, npm, MongoDB Atlas account, Gemini API key.
+
+### 1. Backend
+
+```bash
+cd backend
+npm install
+```
+
+Create a `.env` file in the `backend` directory:
+
+```env
+PORT=3000
+MONGODB_URI=mongodb+srv://<your-cluster>
+JWT_SECRET=your_secret_key
+GEMINI_API_KEY=your_gemini_api_key
+OLLAMA_BASE_URL=http://localhost:11434
+```
+
+```bash
+npm run dev   # http://localhost:3000
+```
+
+### 2. Frontend
+
+```bash
+cd frontend
+npm install
+```
+
+Create a `.env` file in the `frontend` directory:
+
+```env
+VITE_API_URL=http://localhost:3000/api
+```
+
+```bash
+npm run dev   # http://localhost:5173
+```
 
 ## Screenshots
 
-![Home Screen](outputs/home.webp)
+### Home Page
+![Home Page](outputs/home.webp)
 
+### Content Dashboard
 ![Dashboard](outputs/dashboard.webp)
+
+## Future Improvements
+
+- [ ] Collaborative editing features for real-time team content creation.
+- [ ] Integration with Medium and LinkedIn APIs for direct one-click publishing.
+- [ ] Advanced SEO recommendation engine with competitor keyword analysis.
+- [ ] Multi-language support for content translation and localization.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License — see [LICENSE](LICENSE) for details.
 
-## Credit
+## Credits
 
-If you use or build upon this project, please provide attribution:
-Samiksha Lone
-https://github.com/Samiksha-Lone
-
-## 🎯 Key Learnings
-
-- Built a full-stack application with asynchronous AI processing and queue management
-- Implemented dual AI provider integration with fallback mechanisms for reliability
-- Designed comprehensive content analytics system with multiple scoring metrics
-- Created template-based content generation with customizable parameters
-- Developed version control system for iterative content improvements
-- Integrated content scraping and processing pipeline
-- Implemented secure authentication and authorization patterns
-- Built responsive frontend with modern React and Tailwind CSS
-- Managed complex data relationships and schema design with MongoDB
-- Optimized performance with caching and rate limiting strategies
-
-## 🚀 Future Improvements
-
-- Add more content templates (social media posts, newsletters, technical articles)
-- Implement collaborative editing features for team content creation
-- Enhance analytics with more detailed SEO recommendations and competitor analysis
-- Add content scheduling and publishing integration with platforms like Medium/LinkedIn
-- Implement advanced AI features like content summarization and translation
-- Add user feedback system for continuous content improvement
-- Integrate with more AI providers and local models for broader compatibility
-- Build admin dashboard for content moderation and user management
-- Add real-time collaboration features with WebSocket integration
-
-## 📬 Contact
-
-**Samiksha Balaji Lone**  
-📧 samikshalone2@gmail.com  
-🔗 [LinkedIn](https://linkedin.com/in/samiksha-lone) | [Portfolio](https://samiksha-lone.vercel.app/)
+**Developed by [Samiksha Lone](https://github.com/Samiksha-Lone)**
